@@ -61,6 +61,52 @@ class PodcastRepo(private val feedService: FeedService, private val podcastDao: 
             rssResponse.lastUpdated, episodes = rssItemsToEpisodes(items))
     }
 
+    private fun getNewEpisodes(localPodcast: Podcast, callback: (List<Episode>) -> Unit) {
+        feedService.getFeed(localPodcast.feedUrl) { response ->
+            if (response != null) {
+                val remotePodcast = rssResponseToPodcast(localPodcast.feedUrl,
+                    localPodcast.imageUrl, response)
+                val localEpisodes = podcastDao.loadEpisodes(localPodcast.id!!)
+                val newEpisodes = remotePodcast?.episodes?.filter { episode ->
+                    localEpisodes.find { episode.guid == it.guid } == null
+                }
+                callback(newEpisodes ?: listOf())
+            } else {
+                callback(listOf())
+            }
+        }
+    }
+
+    private fun saveNewEpisodes(podcastId: Long, episodes: List<Episode>) {
+        GlobalScope.launch {
+            for (episode in episodes) {
+                episode.podcastId = podcastId
+                podcastDao.insertEpisode(episode)
+            }
+        }
+    }
+
+    fun updatePodcastEpisodes(callback: (List<PodcastUpdateInfo>) -> Unit) {
+        val updatedPodcasts = mutableListOf<PodcastUpdateInfo>()
+        val podcasts = podcastDao.loadPodcastsStatic()
+        var processCount = podcasts.count()
+
+        for (podcast in podcasts) {
+            getNewEpisodes(podcast) { newEpisodes ->
+                if (newEpisodes.count() > 0) {
+                    saveNewEpisodes(podcast.id!!, newEpisodes)
+                    updatedPodcasts.add(
+                        PodcastUpdateInfo(podcast.feedUrl, podcast.feedTitle, newEpisodes.count())
+                    )
+                    processCount--
+                    if (processCount == 0) {
+                        callback(updatedPodcasts)
+                    }
+                }
+            }
+        }
+    }
+
     fun getAll(): LiveData<List<Podcast>> {
         return podcastDao.loadPodcasts()
     }
@@ -80,4 +126,6 @@ class PodcastRepo(private val feedService: FeedService, private val podcastDao: 
             podcastDao.deletePodcast(podcast)
         }
     }
+
+    class PodcastUpdateInfo(val feedUrl: String, val name: String, val newCount: Int)
 }

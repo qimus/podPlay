@@ -14,8 +14,8 @@ import androidx.appcompat.widget.SearchView
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.work.*
 import kotlinx.android.synthetic.main.activity_podcast.*
-import kotlinx.android.synthetic.main.fragment_podcast_details.*
 import ru.den.podplay.R
 import ru.den.podplay.adapter.PodcastListAdapter
 import ru.den.podplay.db.PodplayDatabase
@@ -25,6 +25,8 @@ import ru.den.podplay.service.FeedService
 import ru.den.podplay.service.ItunesService
 import ru.den.podplay.viewmodel.PodcastViewModel
 import ru.den.podplay.viewmodel.SearchViewModel
+import ru.den.podplay.worker.EpisodeUpdateWorker
+import java.util.concurrent.TimeUnit
 
 class PodcastActivity : AppCompatActivity(), PodcastListAdapter.PodcastListApapterListener,
     PodcastDetailsFragment.OnPodcastDetailsListener {
@@ -35,6 +37,7 @@ class PodcastActivity : AppCompatActivity(), PodcastListAdapter.PodcastListApapt
 
     companion object {
         private const val TAG_DETAILS_FRAGMENT = "DetailsFragment"
+        private const val TAG_EPISODE_UPDATE_JOB = "ru.den.podplay.episodes"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -156,6 +159,20 @@ class PodcastActivity : AppCompatActivity(), PodcastListAdapter.PodcastListApapt
             .show()
     }
 
+    private fun scheduleJobs() {
+        val constraints: Constraints = Constraints.Builder().apply {
+            setRequiredNetworkType(NetworkType.CONNECTED)
+            setRequiresCharging(true)
+        }.build()
+
+        val request = PeriodicWorkRequestBuilder<EpisodeUpdateWorker>(1, TimeUnit.HOURS)
+            .setConstraints(constraints)
+            .build()
+
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(TAG_DETAILS_FRAGMENT,
+            ExistingPeriodicWorkPolicy.REPLACE, request)
+    }
+
     private fun showDetailsFragment() {
         val podcastDetailsFragment = createPodcastDetailsFragment()
         supportFragmentManager
@@ -204,6 +221,13 @@ class PodcastActivity : AppCompatActivity(), PodcastListAdapter.PodcastListApapt
         if (intent.action == Intent.ACTION_SEARCH) {
             val query = intent.getStringExtra(SearchManager.QUERY) ?: return
             performSearch(query)
+        }
+
+        val podcastFeedUrl = intent.getStringExtra(EpisodeUpdateWorker.EXTRA_FEED_URL)
+        if (podcastFeedUrl != null) {
+            podcastViewModel.setActivePodcast(podcastFeedUrl) {
+                it?.let { podcastSummaryView -> onShowDetails(podcastSummaryView) }
+            }
         }
     }
 
