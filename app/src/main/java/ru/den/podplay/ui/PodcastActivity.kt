@@ -38,6 +38,7 @@ class PodcastActivity : AppCompatActivity(), PodcastListAdapter.PodcastListApapt
     companion object {
         private const val TAG_DETAILS_FRAGMENT = "DetailsFragment"
         private const val TAG_EPISODE_UPDATE_JOB = "ru.den.podplay.episodes"
+        private const val TAG_PLAYER_FRAGMENT = "TAG_PLAYER_FRAGMENT"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -193,6 +194,32 @@ class PodcastActivity : AppCompatActivity(), PodcastListAdapter.PodcastListApapt
     override fun onUnsubscribe() {
         podcastViewModel.deleteActivePodcast()
         supportFragmentManager.popBackStack()
+    }
+
+    override fun onShowEpisodePlayer(episodeViewData: PodcastViewModel.EpisodeViewData) {
+        podcastViewModel.activeEpisodeViewData = episodeViewData
+        showPlayerFragment()
+    }
+
+    private fun createEpisodePlayerFragment(): EpisodePlayerFragment {
+        var episodePlayerFragment = supportFragmentManager
+            .findFragmentByTag(TAG_PLAYER_FRAGMENT) as? EpisodePlayerFragment
+
+        if (episodePlayerFragment == null) {
+            episodePlayerFragment = EpisodePlayerFragment.newInstance()
+        }
+
+        return episodePlayerFragment
+    }
+
+    private fun showPlayerFragment() {
+        val episodePlayerFragment = createEpisodePlayerFragment()
+
+        supportFragmentManager.beginTransaction().replace(
+            R.id.podcastDetailsContainer, episodePlayerFragment, TAG_PLAYER_FRAGMENT)
+            .addToBackStack("PlayerFragment").commit()
+        rv_podcast.visibility = View.INVISIBLE
+        searchMenuItem.isVisible = false
     }
 
     private fun setupToolbar() {

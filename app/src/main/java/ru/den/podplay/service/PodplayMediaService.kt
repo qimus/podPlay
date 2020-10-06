@@ -8,14 +8,12 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.media.MediaDescription
 import android.os.Build
 import android.os.Bundle
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
-import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -26,7 +24,6 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import ru.den.podplay.R
 import ru.den.podplay.ui.PodcastActivity
-import java.net.URI
 import java.net.URL
 
 class PodplayMediaService : MediaBrowserServiceCompat(), PodplayMediaCallback.PodplayMediaListener {
@@ -54,7 +51,7 @@ class PodplayMediaService : MediaBrowserServiceCompat(), PodplayMediaCallback.Po
         )
 
         val playAction = NotificationCompat.Action(
-            R.drawable.ic_pause_white, getString(R.string.play),
+            R.drawable.ic_play_arrow_white, getString(R.string.play),
             MediaButtonReceiver.buildMediaButtonPendingIntent(this,
                 PlaybackStateCompat.ACTION_PLAY)
         )
