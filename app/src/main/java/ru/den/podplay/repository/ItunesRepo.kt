@@ -8,8 +8,8 @@ import ru.den.podplay.service.ItunesService
 import ru.den.podplay.service.PodcastResponse
 
 class ItunesRepo(private val itunesService: ItunesService) {
-    fun searchByTerm(term: String, callback: (List<ItunesPodcast>?) -> Unit) {
-        val podcastCall = itunesService.searchPodcastByTerm(term)
+    fun searchByTerm(term: String, limit: Int, offset: Int, callback: (List<ItunesPodcast>?) -> Unit) {
+        val podcastCall = itunesService.searchPodcastByTerm(term, limit, offset)
 
         podcastCall.enqueue(object : Callback<PodcastResponse> {
             override fun onFailure(call: Call<PodcastResponse>, t: Throwable) {

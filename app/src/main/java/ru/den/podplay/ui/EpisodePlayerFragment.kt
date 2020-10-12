@@ -9,6 +9,7 @@ import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Parcelable
 import android.support.v4.media.MediaBrowserCompat
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaControllerCompat
@@ -23,21 +24,18 @@ import android.view.ViewGroup
 import android.view.animation.LinearInterpolator
 import android.widget.SeekBar
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.animation.addListener
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
-import androidx.fragment.app.activityViewModels
 import com.bumptech.glide.Glide
+import kotlinx.android.parcel.Parcelize
 import kotlinx.android.synthetic.main.fragment_episode_player.*
 import ru.den.podplay.R
 import ru.den.podplay.service.PodplayMediaCallback
 import ru.den.podplay.service.PodplayMediaService
 import ru.den.podplay.util.HtmlUtils
-import ru.den.podplay.viewmodel.PodcastViewModel
 import timber.log.Timber
 
 class EpisodePlayerFragment : Fragment() {
-    private val podcastViewModel: PodcastViewModel by activityViewModels()
     private lateinit var mediaBrowser: MediaBrowserCompat
     private var mediaControllerCallback: MediaControllerCallback? = null
     private var playerSpeed: Float = 1f
@@ -49,17 +47,27 @@ class EpisodePlayerFragment : Fragment() {
     private var playOnPrepare = false
     private var isVideo = false
 
+    private var mediaInfo: MediaInfo? = null
+
     companion object {
-        fun newInstance(): EpisodePlayerFragment {
-            return EpisodePlayerFragment()
+        fun newInstance(mediaInfo: MediaInfo): EpisodePlayerFragment {
+            return EpisodePlayerFragment().apply {
+                val bundle = Bundle().apply {
+                    putParcelable("mediaInfo", mediaInfo)
+                }
+                arguments = bundle
+            }
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         retainInstance = true
+
+        mediaInfo = arguments?.getParcelable("mediaInfo") as? MediaInfo
+
         isVideo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            podcastViewModel.activeEpisodeViewData?.isVideo ?: false
+            mediaInfo?.isVideo ?: false
         } else {
             false
         }
@@ -84,6 +92,7 @@ class EpisodePlayerFragment : Fragment() {
         }
         setupControls()
         updateControls()
+        (activity as? BottomBarHolder)?.hideBottomNavBar()
     }
 
     override fun onStart() {
@@ -154,9 +163,7 @@ class EpisodePlayerFragment : Fragment() {
             mediaPlayer = MediaPlayer()
             mediaPlayer?.let {
                 it.setAudioStreamType(AudioManager.STREAM_MUSIC)
-                it.setDataSource(
-                    podcastViewModel.activeEpisodeViewData?.mediaUrl
-                )
+                it.setDataSource(mediaInfo?.mediaUrl)
                 it.setOnPreparedListener {
                     val fragmentActivity = activity as FragmentActivity
                     val episodeMediaCallback = PodplayMediaCallback(fragmentActivity,
@@ -224,27 +231,23 @@ class EpisodePlayerFragment : Fragment() {
             if (controller.playbackState.state == PlaybackStateCompat.STATE_PLAYING) {
                 controller.transportControls.pause()
             } else {
-                podcastViewModel.activeEpisodeViewData?.let {
-                    startPlaying(it)
-                }
+                startPlaying()
             }
         } else {
-            podcastViewModel.activeEpisodeViewData?.let {
-                startPlaying(it)
-            }
+            startPlaying()
         }
     }
 
     private fun updateControls() {
-        episodeTitleTextView.text = podcastViewModel.activeEpisodeViewData?.title
-        val htmlDesc = podcastViewModel.activeEpisodeViewData?.description ?: ""
+        episodeTitleTextView.text = mediaInfo?.title
+        val htmlDesc = mediaInfo?.description ?: ""
         val descSpan = HtmlUtils.htmlToSpannable(htmlDesc)
         episodeDescTextView.text = descSpan
         episodeDescTextView.movementMethod = ScrollingMovementMethod()
 
         val fragmentActivity = activity as FragmentActivity
         Glide.with(fragmentActivity)
-            .load(podcastViewModel.activePodcastViewData?.imageUrl)
+            .load(mediaInfo?.imageUrl)
             .into(episodeImageView)
 
         mediaPlayer?.let {
@@ -267,17 +270,21 @@ class EpisodePlayerFragment : Fragment() {
         speedButton.text = "${playerSpeed}x"
     }
 
-    private fun startPlaying(episodeViewData: PodcastViewModel.EpisodeViewData) {
+    private fun startPlaying() {
         val fragmentActivity = activity as FragmentActivity
         val controller = MediaControllerCompat.getMediaController(fragmentActivity)
 
-        val viewData = podcastViewModel.activePodcastViewData ?: return
+        val mediaInfo = mediaInfo ?: return
         val bundle = Bundle()
-        bundle.putString(MediaMetadataCompat.METADATA_KEY_TITLE, episodeViewData.title)
-        bundle.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, viewData.feedTitle)
-        bundle.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, viewData.imageUrl)
-        Timber.d("imageUrl: ${viewData.imageUrl}")
-        controller.transportControls.playFromUri(Uri.parse(episodeViewData.mediaUrl), bundle)
+        bundle.putString(MediaMetadataCompat.METADATA_KEY_TITLE, mediaInfo.title)
+        bundle.putString(MediaMetadataCompat.METADATA_KEY_ARTIST, mediaInfo.feedTitle)
+        bundle.putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, mediaInfo.imageUrl)
+        Timber.d("imageUrl: ${mediaInfo.imageUrl}")
+        if (mediaInfo.file != null) {
+            controller.transportControls.playFromUri(Uri.parse(mediaInfo.file), bundle)
+        } else {
+            controller.transportControls.playFromUri(Uri.parse(mediaInfo.mediaUrl), bundle)
+        }
     }
 
     private fun initMediaBrowser() {
@@ -415,4 +422,15 @@ class EpisodePlayerFragment : Fragment() {
             println("onConnectionFailed")
         }
     }
+
+    @Parcelize
+    data class MediaInfo(
+        val feedTitle: String? = "",
+        val title: String? = "",
+        val description: String? = "",
+        val isVideo: Boolean = false,
+        val mediaUrl: String? = "",
+        val imageUrl: String? = "",
+        val file: String? = ""
+    ) : Parcelable
 }

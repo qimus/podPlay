@@ -1,10 +1,7 @@
 package ru.den.podplay.service
 
 import android.content.Context
-import android.media.AudioAttributes
-import android.media.AudioFocusRequest
-import android.media.AudioManager
-import android.media.MediaPlayer
+import android.media.*
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -13,7 +10,10 @@ import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import timber.log.Timber
+import java.io.File
+import java.io.FileInputStream
 import java.lang.Exception
+import java.net.URI
 
 class PodplayMediaCallback(
     val context: Context,
@@ -170,23 +170,28 @@ class PodplayMediaCallback(
         if (newMedia) {
             newMedia = false
             mediaPlayer?.run {
-                if (mediaNeedsPrepare) {
-                    reset()
-                    setDataSource(context, mediaUri!!)
-                    prepare()
+                try {
+                    if (mediaNeedsPrepare) {
+                        reset()
+                        setDataSource(context, mediaUri!!)
+                        prepare()
+                    }
+                    mediaExtras?.let { mediaExtras ->
+                        mediaSession.setMetadata(MediaMetadataCompat.Builder()
+                            .putString(MediaMetadataCompat.METADATA_KEY_TITLE,
+                                mediaExtras.getString(MediaMetadataCompat.METADATA_KEY_TITLE))
+                            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST,
+                                mediaExtras.getString(MediaMetadataCompat.METADATA_KEY_ARTIST))
+                            .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI,
+                                mediaExtras.getString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI))
+                            .putLong(MediaMetadataCompat.METADATA_KEY_DURATION,
+                                mediaPlayer?.duration?.toLong() ?: 0)
+                            .build())
+                    }
+                } catch (e: Exception) {
+                    setState(PlaybackStateCompat.STATE_ERROR)
                 }
-                mediaExtras?.let { mediaExtras ->
-                    mediaSession.setMetadata(MediaMetadataCompat.Builder()
-                        .putString(MediaMetadataCompat.METADATA_KEY_TITLE,
-                            mediaExtras.getString(MediaMetadataCompat.METADATA_KEY_TITLE))
-                        .putString(MediaMetadataCompat.METADATA_KEY_ARTIST,
-                            mediaExtras.getString(MediaMetadataCompat.METADATA_KEY_ARTIST))
-                        .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI,
-                            mediaExtras.getString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI))
-                        .putLong(MediaMetadataCompat.METADATA_KEY_DURATION,
-                            mediaPlayer?.duration?.toLong() ?: 0)
-                        .build())
-                }
+
             }
         }
     }

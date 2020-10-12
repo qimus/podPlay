@@ -4,16 +4,17 @@ import android.app.AlertDialog
 import android.app.SearchManager
 import android.content.Context
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
 import androidx.activity.viewModels
+import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import androidx.work.*
 import kotlinx.android.synthetic.main.activity_podcast.*
 import ru.den.podplay.R
@@ -28,17 +29,26 @@ import ru.den.podplay.viewmodel.SearchViewModel
 import ru.den.podplay.worker.EpisodeUpdateWorker
 import java.util.concurrent.TimeUnit
 
+interface BottomBarHolder {
+    fun showBottomNavBar()
+    fun hideBottomNavBar()
+}
+
 class PodcastActivity : AppCompatActivity(), PodcastListAdapter.PodcastListApapterListener,
-    PodcastDetailsFragment.OnPodcastDetailsListener {
+    PodcastDetailsFragment.OnPodcastDetailsListener, BottomBarHolder {
     private val searchViewModel by viewModels<SearchViewModel>()
     private lateinit var podcastListAdapter: PodcastListAdapter
     private lateinit var searchMenuItem: MenuItem
     private val podcastViewModel by viewModels<PodcastViewModel>()
+    private var searchCount = 0
+    private var searchTerm = ""
+    private var isLoading = false
 
     companion object {
-        private const val TAG_DETAILS_FRAGMENT = "DetailsFragment"
-        private const val TAG_EPISODE_UPDATE_JOB = "ru.den.podplay.episodes"
-        private const val TAG_PLAYER_FRAGMENT = "TAG_PLAYER_FRAGMENT"
+        const val TAG_DETAILS_FRAGMENT = "DetailsFragment"
+        const val TAG_DOWNLOADS_FRAGMENT = "DownloadsFragment"
+        const val TAG_EPISODE_UPDATE_JOB = "ru.den.podplay.episodes"
+        const val TAG_PLAYER_FRAGMENT = "TAG_PLAYER_FRAGMENT"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -49,6 +59,8 @@ class PodcastActivity : AppCompatActivity(), PodcastListAdapter.PodcastListApapt
         updateControls()
         setupPodcastListView()
         addBackStackListener()
+        initScrollListener()
+        setupBottomNavigation()
     }
 
     private fun createPodcastDetailsFragment(): PodcastDetailsFragment {
@@ -60,6 +72,17 @@ class PodcastActivity : AppCompatActivity(), PodcastListAdapter.PodcastListApapt
         }
 
         return podcastDetailsFragment
+    }
+
+    private fun createDownloadsPodcastFragment(): DownloadedPodcastFragment {
+        var downloadPodcastFragment = supportFragmentManager
+            .findFragmentByTag(TAG_DOWNLOADS_FRAGMENT) as? DownloadedPodcastFragment
+
+        if (downloadPodcastFragment == null) {
+            downloadPodcastFragment = DownloadedPodcastFragment.newInstance()
+        }
+
+        return downloadPodcastFragment
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -100,6 +123,36 @@ class PodcastActivity : AppCompatActivity(), PodcastListAdapter.PodcastListApapt
         })
     }
 
+    private fun setupBottomNavigation() {
+        bottomNavigation.setOnNavigationItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.menu_podcasts -> {
+                    rv_podcast.visibility = View.VISIBLE
+                    searchMenuItem.isVisible = true
+                    showSubscribedPodcasts()
+                    removeFragment()
+                    true
+                }
+                R.id.menu_downloads -> {
+                    showDownloadsFragment()
+                    toolbar.title = getString(R.string.downloads)
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun removeFragment() {
+        val fragment = supportFragmentManager.findFragmentById(R.id.podcastDetailsContainer)
+        if (fragment != null) {
+            supportFragmentManager
+                .beginTransaction()
+                .remove(fragment)
+                .commit()
+        }
+    }
+
     private fun setupViewModels() {
         val service = ItunesService.instance
         searchViewModel.itunesRepo = ItunesRepo(service)
@@ -123,10 +176,31 @@ class PodcastActivity : AppCompatActivity(), PodcastListAdapter.PodcastListApapt
         rv_podcast.adapter = podcastListAdapter
     }
 
+    private fun initScrollListener() {
+        rv_podcast.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                val layoutManager = recyclerView.layoutManager as LinearLayoutManager
+                if (layoutManager.findLastCompletelyVisibleItemPosition() == searchCount - 1) {
+                    if (!isLoading) {
+                        isLoading = true
+                        loadMore()
+                    }
+                }
+            }
+        })
+    }
+
+    private fun loadMore() {
+        podcastListAdapter.showLoader()
+        performSearch(searchTerm)
+    }
+
     private fun addBackStackListener() {
         supportFragmentManager.addOnBackStackChangedListener {
             if (supportFragmentManager.backStackEntryCount == 0) {
                 rv_podcast.visibility = View.VISIBLE
+                showBottomNavBar()
             }
         }
     }
@@ -178,12 +252,35 @@ class PodcastActivity : AppCompatActivity(), PodcastListAdapter.PodcastListApapt
         val podcastDetailsFragment = createPodcastDetailsFragment()
         supportFragmentManager
             .beginTransaction()
-            .add(R.id.podcastDetailsContainer, podcastDetailsFragment, TAG_DETAILS_FRAGMENT)
+            .setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out)
+            .replace(R.id.podcastDetailsContainer, podcastDetailsFragment, TAG_DETAILS_FRAGMENT)
             .addToBackStack("DetailsFragment")
             .commit()
 
         rv_podcast.visibility = View.INVISIBLE
+        hideBottomNavBar()
         searchMenuItem.isVisible = false
+    }
+
+    private fun showDownloadsFragment() {
+        val fragment = createDownloadsPodcastFragment()
+        supportFragmentManager
+            .beginTransaction()
+            .setCustomAnimations(android.R.anim.fade_in, android.R.anim.fade_out)
+            .replace(R.id.podcastDetailsContainer, fragment, TAG_DOWNLOADS_FRAGMENT)
+            .addToBackStack(TAG_DOWNLOADS_FRAGMENT)
+            .commit()
+
+        rv_podcast.visibility = View.INVISIBLE
+        searchMenuItem.isVisible = false
+    }
+
+    override fun hideBottomNavBar() {
+        bottomNavigation.visibility = View.INVISIBLE
+    }
+
+    override fun showBottomNavBar() {
+        bottomNavigation.visibility = View.VISIBLE
     }
 
     override fun onSubscribe() {
@@ -202,14 +299,17 @@ class PodcastActivity : AppCompatActivity(), PodcastListAdapter.PodcastListApapt
     }
 
     private fun createEpisodePlayerFragment(): EpisodePlayerFragment {
-        var episodePlayerFragment = supportFragmentManager
-            .findFragmentByTag(TAG_PLAYER_FRAGMENT) as? EpisodePlayerFragment
-
-        if (episodePlayerFragment == null) {
-            episodePlayerFragment = EpisodePlayerFragment.newInstance()
-        }
-
-        return episodePlayerFragment
+        return EpisodePlayerFragment.newInstance(
+            EpisodePlayerFragment.MediaInfo(
+                podcastViewModel.activePodcastViewData?.feedTitle,
+                podcastViewModel.activeEpisodeViewData?.title,
+                podcastViewModel.activeEpisodeViewData?.description,
+                podcastViewModel.activeEpisodeViewData?.isVideo ?: false,
+                podcastViewModel.activeEpisodeViewData?.mediaUrl,
+                podcastViewModel.activePodcastViewData?.imageUrl,
+                podcastViewModel.activeEpisodeViewData?.downloadInfo?.file
+            )
+        )
     }
 
     private fun showPlayerFragment() {
@@ -226,13 +326,20 @@ class PodcastActivity : AppCompatActivity(), PodcastListAdapter.PodcastListApapt
         setSupportActionBar(toolbar)
     }
 
-    private fun performSearch(term: String) {
+    private fun performSearch(term: String, limit: Int = 30) {
         showProgressBar()
 
-        searchViewModel.searchPodcasts(term) { results ->
+        searchViewModel.searchPodcasts(term, limit, searchCount) { results ->
             hideProgressBar()
+
+            if (isLoading) {
+                podcastListAdapter.hideLoader()
+                isLoading = false
+            }
+
+            searchCount += results.size
             toolbar.title = term
-            podcastListAdapter.setSearchData(results)
+            podcastListAdapter.addItems(results)
         }
     }
 
@@ -247,6 +354,9 @@ class PodcastActivity : AppCompatActivity(), PodcastListAdapter.PodcastListApapt
     private fun handleIntent(intent: Intent) {
         if (intent.action == Intent.ACTION_SEARCH) {
             val query = intent.getStringExtra(SearchManager.QUERY) ?: return
+            searchCount = 0
+            searchTerm = query
+            podcastListAdapter.setSearchData(listOf())
             performSearch(query)
         }
 

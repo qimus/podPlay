@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.Transformations
+import ru.den.podplay.model.Download
 import ru.den.podplay.model.Episode
 import ru.den.podplay.model.Podcast
 import ru.den.podplay.repository.PodcastRepo
@@ -28,20 +29,26 @@ class PodcastViewModel(application: Application) :
     )
 
     data class EpisodeViewData (
-        var guid: String? = "",
-        var title: String? = "",
-        var description: String? = "",
-        var mediaUrl: String? = "",
-        var releaseDate: Date? = null,
-        var duration: String? = "",
-        var isVideo: Boolean = false
+        var id: Long? = null,
+        var guid: String = "",
+        var podcastId: Long? = null,
+        var title: String = "",
+        var description: String = "",
+        var mediaUrl: String = "",
+        var type: String = "",
+        var releaseDate: Date = Date(),
+        var duration: String = "",
+        var isVideo: Boolean = false,
+        var downloadInfo: Download? = null
     )
 
     private fun episodesToEpisodesView(episodes: List<Episode>) =
         episodes.map {
             val isVideo = it.type.startsWith("video")
-            EpisodeViewData(it.guid, it.title, it.description,
-                it.mediaUrl, it.releaseDate, it.duration, isVideo)
+            EpisodeViewData(
+                it.id, it.guid, it.podcastId, it.title, it.description, it.mediaUrl,
+                it.type, it.releaseDate, it.duration, isVideo, it.download
+            )
         }
 
     private fun podcastToPodcastView(podcast: Podcast) =
@@ -118,5 +125,10 @@ class PodcastViewModel(application: Application) :
                 callback(podcastToSummaryView(it))
             }
         }
+    }
+
+    fun saveDownloadTask(download: Download) {
+        val repo = podcastRepo ?: return
+        repo.save(download)
     }
 }

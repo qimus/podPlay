@@ -2,6 +2,7 @@ package ru.den.podplay.db
 
 import android.content.Context
 import androidx.room.*
+import ru.den.podplay.model.Download
 import ru.den.podplay.model.Episode
 import ru.den.podplay.model.Podcast
 import java.util.*
@@ -16,7 +17,12 @@ class Converters {
     fun toTimestamp(date: Date?): Long? = date?.time
 }
 
-@Database(entities = [Podcast::class, Episode::class], version = 1)
+@Database(
+    entities = [
+        Podcast::class, Episode::class, Download::class
+    ],
+    version = 1
+)
 @TypeConverters(Converters::class)
 abstract class PodplayDatabase : RoomDatabase() {
     abstract fun podcastDao(): PodcastDao
@@ -26,7 +32,9 @@ abstract class PodplayDatabase : RoomDatabase() {
 
         fun getInstance(context: Context): PodplayDatabase {
             instance = Room.databaseBuilder(context.applicationContext,
-                PodplayDatabase::class.java, "PodPlayer").build()
+                PodplayDatabase::class.java, "PodPlayer")
+                .fallbackToDestructiveMigration()
+                .build()
 
             return instance as PodplayDatabase
         }

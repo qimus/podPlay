@@ -1,9 +1,6 @@
 package ru.den.podplay.model
 
-import androidx.room.Entity
-import androidx.room.ForeignKey
-import androidx.room.Index
-import androidx.room.PrimaryKey
+import androidx.room.*
 import java.util.*
 
 @Entity(
@@ -11,20 +8,25 @@ import java.util.*
         ForeignKey(
             entity = Podcast::class,
             parentColumns = ["id"],
-            childColumns = ["podcastId"],
+            childColumns = ["podcast_id"],
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("podcastId")]
+    indices = [Index("podcast_id"), Index("id")]
 )
 data class Episode(
-    @PrimaryKey var guid: String = "",
+    @PrimaryKey(autoGenerate = true) var id: Long? = null,
+    var guid: String = "",
     var title: String = "",
     var description: String = "",
+    @ColumnInfo(name = "media_url")
     var mediaUrl: String = "",
     var type: String = "",
+    @ColumnInfo(name = "release_date")
     var releaseDate: Date = Date(),
     var duration: String = "",
-    var podcastId: Long? = null
-) {
-}
+    @ColumnInfo(name = "podcast_id")
+    var podcastId: Long? = null,
+    @Ignore
+    var download: Download? = null
+)

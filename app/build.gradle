@@ -51,6 +51,14 @@ dependencies {
 
     implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:$lifecycle_version"
     implementation "androidx.activity:activity-ktx:1.1.0"
+    implementation "android.arch.lifecycle:viewmodel:1.1.1"
+    implementation "android.arch.lifecycle:extensions:1.1.1"
+
+    implementation 'com.google.android.material:material:1.2.1'
+
+    // Java language implementation
+    implementation "androidx.nav_graph:nav_graph-fragment:$nav_version"
+    implementation "androidx.nav_graph:nav_graph-ui:$nav_version"
 
     implementation 'com.github.bumptech.glide:glide:4.11.0'
 

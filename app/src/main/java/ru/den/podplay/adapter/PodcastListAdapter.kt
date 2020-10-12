@@ -1,7 +1,5 @@
 package ru.den.podplay.adapter
 
-import android.app.Activity
-import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -10,46 +8,86 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import kotlinx.android.synthetic.main.search_item.view.*
 import ru.den.podplay.R
+import ru.den.podplay.ext.inflate
 import ru.den.podplay.viewmodel.SearchViewModel
-import timber.log.Timber
+import java.lang.ClassCastException
 
 class PodcastListAdapter(
-    private var podcastSummaryViewList: List<SearchViewModel.PodcastSummaryViewData>?,
+    private var podcastSummaryViewList: MutableList<SearchViewModel.PodcastSummaryViewData?>?,
     private val podcastListAdapterListener: PodcastListApapterListener
-) : RecyclerView.Adapter<PodcastListAdapter.ViewHolder>() {
+) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+
+    companion object {
+        const val ITEM_PODCAST = 0
+        const val ITEM_LOADING = 1
+    }
 
     interface PodcastListApapterListener {
         fun onShowDetails(podcastSummaryViewData: SearchViewModel.PodcastSummaryViewData)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        return ViewHolder(LayoutInflater.from(parent.context)
-            .inflate(R.layout.search_item, parent, false), podcastListAdapterListener)
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+        return when(viewType) {
+            ITEM_PODCAST -> {
+                PodcastViewHolder(
+                    parent.context.inflate(R.layout.search_item, parent, false),
+                    podcastListAdapterListener
+                )
+            }
+            ITEM_LOADING -> {
+                LoaderViewHolder(
+                    parent.context.inflate(R.layout.loading_item, parent, false)
+                )
+            }
+            else -> throw ClassCastException()
+        }
+    }
+
+    override fun getItemViewType(position: Int): Int {
+        return if (podcastSummaryViewList?.get(position) == null) ITEM_LOADING else ITEM_PODCAST
     }
 
     override fun getItemCount(): Int {
         return podcastSummaryViewList?.size ?: 0
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
         val searchViewList = podcastSummaryViewList ?: return
-        holder.bind(searchViewList[position])
+
+        when (holder) {
+            is PodcastViewHolder -> holder.bind(searchViewList[position]!!)
+        }
     }
 
     fun setSearchData(podcastSummaryViewData: List<SearchViewModel.PodcastSummaryViewData>) {
-        Timber.i("${podcastSummaryViewData.size}")
-        podcastSummaryViewList = podcastSummaryViewData
+        podcastSummaryViewList = podcastSummaryViewData.toMutableList()
         notifyDataSetChanged()
     }
 
-    inner class ViewHolder(v: View,
-        private val podcastListAdapterListener: PodcastListApapterListener
+    fun showLoader() {
+        podcastSummaryViewList?.add(null)
+    }
+
+    fun hideLoader() {
+        val listSize = podcastSummaryViewList?.size ?: 0
+        if (listSize > 0) {
+            podcastSummaryViewList?.removeAt(listSize - 1)
+        }
+    }
+
+    fun addItems(items: List<SearchViewModel.PodcastSummaryViewData>) {
+        podcastSummaryViewList?.addAll(items)
+        notifyDataSetChanged()
+    }
+
+    inner class PodcastViewHolder(v: View,
+                                  private val podcastListAdapterListener: PodcastListApapterListener
     ) :
         RecyclerView.ViewHolder(v) {
         var podcastSummaryViewData: SearchViewModel.PodcastSummaryViewData? = null
         val nameTextView: TextView = v.tv_podcast_name
         val lastUpdatedTextView: TextView = v.tv_podcast_last_updated
-        val podcastImageView: ImageView = v.iv_podcast
+        val podcastImageView: ImageView = v.iv_podcast_logo
 
         init {
             v.setOnClickListener {
@@ -67,5 +105,9 @@ class PodcastListAdapter(
                 .load(item.imageUrl)
                 .into(podcastImageView)
         }
+    }
+
+    class LoaderViewHolder(v: View) : RecyclerView.ViewHolder(v) {
+
     }
 }

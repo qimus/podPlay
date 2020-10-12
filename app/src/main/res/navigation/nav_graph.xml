@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/downloadedPodcastFragment">
+
+    <fragment
+        android:id="@+id/downloadedPodcastFragment"
+        android:name="ru.den.podplay.ui.DownloadedPodcastFragment"
+        android:label="DownloadedPodcastFragment">
+        <action
+            android:id="@+id/action_downloadedPodcastFragment_to_episodePlayerFragment"
+            app:destination="@id/episodePlayerFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/searchFragment"
+        android:name="ru.den.podplay.ui.SearchFragment"
+        android:label="SearchFragment">
+        <action
+            android:id="@+id/action_searchFragment_to_podcastDetailsFragment"
+            app:destination="@id/podcastDetailsFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/podcastDetailsFragment"
+        android:name="ru.den.podplay.ui.PodcastDetailsFragment"
+        android:label="PodcastDetailsFragment">
+        <action
+            android:id="@+id/action_podcastDetailsFragment_to_episodePlayerFragment"
+            app:destination="@id/episodePlayerFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/episodePlayerFragment"
+        android:name="ru.den.podplay.ui.EpisodePlayerFragment"
+        android:label="EpisodePlayerFragment" />
+</navigation>

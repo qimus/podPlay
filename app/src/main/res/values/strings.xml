@@ -10,4 +10,11 @@
     <string name="episode_notification_text">%1$d new episode(s) for %2$s</string>
     <string name="pause">Pause</string>
     <string name="play">Play</string>
+    <string name="start_download">Start downloading…</string>
+    <string name="download_queue">Queue: %1$d</string>
+    <string name="download_episode_question">Download this episode?</string>
+    <string name="ok">Ok</string>
+    <string name="cancel">Cancel</string>
+    <string name="downloaded">Downloaded</string>
+    <string name="downloads">Downloads</string>
 </resources>

@@ -5,13 +5,15 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import ru.den.podplay.db.PodcastDao
-import ru.den.podplay.model.Episode
-import ru.den.podplay.model.Podcast
+import ru.den.podplay.model.*
 import ru.den.podplay.service.FeedService
 import ru.den.podplay.service.RssFeedResponse
 import ru.den.podplay.util.DateUtils
 
-class PodcastRepo(private val feedService: FeedService, private val podcastDao: PodcastDao) {
+class PodcastRepo(
+    private val feedService: FeedService,
+    private val podcastDao: PodcastDao
+) {
     fun getPodcast(feedUrl: String, callback: (Podcast?) -> Unit) {
         GlobalScope.launch {
             val podcast = podcastDao.loadPodcast(feedUrl)
@@ -19,6 +21,7 @@ class PodcastRepo(private val feedService: FeedService, private val podcastDao: 
             if (podcast != null) {
                 podcast.id?.let {
                     podcast.episodes = podcastDao.loadEpisodes(it)
+                    addDownloadInfoToEpisodes(podcast)
                     GlobalScope.launch(Dispatchers.Main) {
                         callback(podcast)
                     }
@@ -29,6 +32,7 @@ class PodcastRepo(private val feedService: FeedService, private val podcastDao: 
                     if (feedResponse != null) {
                         podcast = rssResponseToPodcast(feedUrl, "", feedResponse)
                     }
+                    addDownloadInfoToEpisodes(podcast)
                     GlobalScope.launch(Dispatchers.Main) {
                         callback(podcast)
                     }
@@ -37,17 +41,28 @@ class PodcastRepo(private val feedService: FeedService, private val podcastDao: 
         }
     }
 
+    private fun addDownloadInfoToEpisodes(podcast: Podcast?) {
+        if (podcast == null) return
+        val guids = podcast.episodes.map { it.guid }
+        val downloads = podcastDao.findDownloadsByGuid(guids).map { it.guid to it }.toMap()
+        podcast.episodes.forEach { episode ->
+            if (downloads.containsKey(episode.guid)) {
+                episode.download = downloads[episode.guid]
+            }
+        }
+    }
+
     private fun rssItemsToEpisodes(episodeResponses: List<RssFeedResponse.EpisodeResponse>): List<Episode> {
         return episodeResponses.map {
             Episode(
+                null,
                 it.guid ?: "",
                 it.title ?: "",
                 it.description ?: "",
                 it.url ?: "",
                 it.type ?: "",
                 DateUtils.xmlDateToDate(it.pubDate),
-                it.duration ?: "",
-                null
+                it.duration ?: ""
             )
         }
     }
@@ -118,6 +133,34 @@ class PodcastRepo(private val feedService: FeedService, private val podcastDao: 
                 episode.podcastId = podcastId
                 podcastDao.insertEpisode(episode)
             }
+        }
+    }
+
+    fun findEpisodeById(id: Long): Episode? {
+        val episode = podcastDao.findEpisodeById(id) ?: return null
+        val download = podcastDao.findDownloadByGuid(episode.guid)
+        episode.download = download
+
+        return episode
+    }
+
+    fun findDownload(guid: String): Download? {
+        return podcastDao.findDownloadByGuid(guid)
+    }
+
+    fun findAllDownloads(): LiveData<List<Download>> {
+        return podcastDao.loadDownloads()
+    }
+
+    fun save(episode: Episode) {
+        GlobalScope.launch {
+            podcastDao.insertEpisode(episode)
+        }
+    }
+
+    fun save(download: Download) {
+        GlobalScope.launch {
+            podcastDao.insertDownloadInfo(download)
         }
     }
 

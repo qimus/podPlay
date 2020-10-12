@@ -1,8 +1,9 @@
 package ru.den.podplay.ui
 
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
-import android.support.v4.media.MediaBrowserCompat
 import android.text.method.ScrollingMovementMethod
 import android.view.*
 import androidx.fragment.app.Fragment
@@ -11,21 +12,28 @@ import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import kotlinx.android.synthetic.main.fragment_podcast_details.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import ru.den.podplay.R
 import ru.den.podplay.adapter.EpisodeListAdapter
+import ru.den.podplay.model.Download
+import ru.den.podplay.model.DownloadStatus
+import ru.den.podplay.service.DownloadService
 import ru.den.podplay.viewmodel.PodcastViewModel
-import java.lang.RuntimeException
 
 class PodcastDetailsFragment : Fragment(), EpisodeListAdapter.EpisodeListAdapterListener {
     private val podcastViewModel: PodcastViewModel by activityViewModels()
     private lateinit var episodeListAdapter: EpisodeListAdapter
     private var listener: OnPodcastDetailsListener? = null
     private var menuItem: MenuItem? = null
-    private lateinit var mediaBrowser: MediaBrowserCompat
+    private lateinit var downloadReceiver: DownloadBroadcastReceiver
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setHasOptionsMenu(true)
+        downloadReceiver = DownloadBroadcastReceiver()
     }
 
     override fun onCreateView(
@@ -41,7 +49,7 @@ class PodcastDetailsFragment : Fragment(), EpisodeListAdapter.EpisodeListAdapter
         if (context is OnPodcastDetailsListener) {
             listener = context
         } else {
-            throw RuntimeException(context.toString() + " must implement OnPodcastListener")
+            throw RuntimeException("$context must implement OnPodcastListener")
         }
     }
 
@@ -49,6 +57,16 @@ class PodcastDetailsFragment : Fragment(), EpisodeListAdapter.EpisodeListAdapter
         super.onActivityCreated(savedInstanceState)
         setupControls()
         updateControls()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        activity?.unregisterReceiver(downloadReceiver)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        activity?.registerReceiver(downloadReceiver, DownloadService.getIntentFilter())
     }
 
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {
@@ -111,6 +129,35 @@ class PodcastDetailsFragment : Fragment(), EpisodeListAdapter.EpisodeListAdapter
         listener?.onShowEpisodePlayer(episodeViewData)
     }
 
+    override fun onDownloadEpisode(episodeViewData: PodcastViewModel.EpisodeViewData) {
+        if (episodeViewData.mediaUrl.isEmpty()) {
+            return
+        }
+
+        GlobalScope.launch {
+            val download = Download(
+                null,
+                episodeViewData.guid,
+                podcastViewModel.activePodcastViewData?.feedTitle,
+                podcastViewModel.activePodcastViewData?.feedDesc,
+                episodeViewData.title,
+                episodeViewData.description,
+                episodeViewData.type,
+                episodeViewData.releaseDate,
+                episodeViewData.mediaUrl,
+                podcastViewModel.activePodcastViewData?.imageUrl,
+                episodeViewData.duration,
+                DownloadStatus.DOWNLOADING
+            )
+            podcastViewModel.saveDownloadTask(download)
+            episodeViewData.downloadInfo = download
+            DownloadService.startDownload(activity as Context, episodeViewData.guid)
+            withContext(Dispatchers.Main) {
+                episodeListAdapter.notifyDataSetChanged()
+            }
+        }
+    }
+
     companion object {
         fun newInstance(): PodcastDetailsFragment {
             return PodcastDetailsFragment()
@@ -121,5 +168,27 @@ class PodcastDetailsFragment : Fragment(), EpisodeListAdapter.EpisodeListAdapter
         fun onSubscribe()
         fun onUnsubscribe()
         fun onShowEpisodePlayer(episodeViewData: PodcastViewModel.EpisodeViewData)
+    }
+
+    inner class DownloadBroadcastReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val guid = intent?.getStringExtra("guid") ?: return
+            val repo = podcastViewModel.podcastRepo ?: return
+            GlobalScope.launch {
+                val download = repo.findDownload(guid)
+                var isNeedUpdateList = false
+                podcastViewModel.activePodcastViewData?.episodes?.forEach { episode ->
+                    if (episode.guid == guid) {
+                        episode.downloadInfo = download
+                        isNeedUpdateList = true
+                    }
+                }
+                if (isNeedUpdateList) {
+                    withContext(Dispatchers.Main) {
+                        episodeListAdapter.notifyDataSetChanged()
+                    }
+                }
+            }
+        }
     }
 }
