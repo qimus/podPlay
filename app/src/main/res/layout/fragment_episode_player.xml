@@ -79,6 +79,7 @@
             android:layout_marginEnd="24dp"
             android:background="@android:color/transparent"
             android:scaleType="fitCenter"
+            android:tint="@color/player_buttons_color"
             android:src="@drawable/ic_replay_10_white"
             app:layout_constraintEnd_toStartOf="@+id/playToggleButton"
             app:layout_constraintTop_toTopOf="parent" />
@@ -103,9 +104,23 @@
             android:layout_marginTop="8dp"
             android:background="@android:color/transparent"
             android:scaleType="fitCenter"
+            android:tint="@color/player_buttons_color"
             android:src="@drawable/ic_forward_30_white"
             app:layout_constraintStart_toEndOf="@+id/playToggleButton"
             app:layout_constraintTop_toTopOf="parent" />
+
+        <ProgressBar
+            android:id="@+id/progress_bar"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:layout_marginTop="8dp"
+            android:indeterminate="true"
+            android:backgroundTint="@color/player_buttons_color"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintHorizontal_bias="0.5"
+            android:visibility="gone"/>
 
         <Button
             android:id="@+id/speedButton"
@@ -118,6 +133,7 @@
             android:textAllCaps="false"
             android:textColor="@android:color/white"
             android:textSize="14sp"
+            android:visibility="invisible"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
 

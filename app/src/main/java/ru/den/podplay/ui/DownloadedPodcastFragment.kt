@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
+import androidx.navigation.fragment.findNavController
 import kotlinx.android.synthetic.main.fragment_downloaded_podcast.*
 import ru.den.podplay.R
 import ru.den.podplay.adapter.DownloadPodcastAdapter
@@ -16,7 +17,6 @@ import ru.den.podplay.repository.PodcastRepo
 import ru.den.podplay.service.FeedService
 import ru.den.podplay.viewmodel.DownloadPodcastViewModel
 import ru.den.podplay.viewmodel.DownloadViewModelFactory
-import timber.log.Timber
 
 class DownloadedPodcastFragment : Fragment() {
     private lateinit var downloadViewModel: DownloadPodcastViewModel
@@ -42,12 +42,9 @@ class DownloadedPodcastFragment : Fragment() {
         downloadViewModel.getAll().observe(viewLifecycleOwner, Observer { downloads ->
             downloadPodcastAdapter.setItems(downloads.toMutableList())
         })
+        activity?.title = "Downloads"
     }
 
-    override fun onStart() {
-        super.onStart()
-        (activity as? BottomBarHolder)?.showBottomNavBar()
-    }
 
     private fun setupAdapter() {
         downloadPodcastAdapter = DownloadPodcastAdapter { download ->
@@ -63,10 +60,10 @@ class DownloadedPodcastFragment : Fragment() {
             download.imageUrl, download.file
         )
 
-        fragmentManager?.beginTransaction()
-            ?.replace(R.id.podcastDetailsContainer, EpisodePlayerFragment.newInstance(mediaInfo), PodcastActivity.TAG_PLAYER_FRAGMENT)
-            ?.addToBackStack(PodcastActivity.TAG_PLAYER_FRAGMENT)
-            ?.commit()
+        findNavController().navigate(
+            DownloadedPodcastFragmentDirections.actionDownloadedPodcastFragmentToEpisodePlayerFragment(mediaInfo)
+        )
+
     }
 
     companion object {

@@ -13,9 +13,11 @@ import ru.den.podplay.viewmodel.SearchViewModel
 import java.lang.ClassCastException
 
 class PodcastListAdapter(
-    private var podcastSummaryViewList: MutableList<SearchViewModel.PodcastSummaryViewData?>?,
     private val podcastListAdapterListener: PodcastListApapterListener
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+
+    private var podcastSummaryViewList: MutableList<SearchViewModel.PodcastSummaryViewData?>
+            = mutableListOf()
 
     companion object {
         const val ITEM_PODCAST = 0
@@ -60,23 +62,24 @@ class PodcastListAdapter(
     }
 
     fun setSearchData(podcastSummaryViewData: List<SearchViewModel.PodcastSummaryViewData>) {
-        podcastSummaryViewList = podcastSummaryViewData.toMutableList()
+        podcastSummaryViewList.clear()
+        podcastSummaryViewList.addAll(podcastSummaryViewData)
         notifyDataSetChanged()
     }
 
     fun showLoader() {
-        podcastSummaryViewList?.add(null)
+        podcastSummaryViewList.add(null)
     }
 
     fun hideLoader() {
-        val listSize = podcastSummaryViewList?.size ?: 0
+        val listSize = podcastSummaryViewList.size
         if (listSize > 0) {
-            podcastSummaryViewList?.removeAt(listSize - 1)
+            podcastSummaryViewList.removeAt(listSize - 1)
         }
     }
 
     fun addItems(items: List<SearchViewModel.PodcastSummaryViewData>) {
-        podcastSummaryViewList?.addAll(items)
+        podcastSummaryViewList.addAll(items)
         notifyDataSetChanged()
     }
 

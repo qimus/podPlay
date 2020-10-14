@@ -35,7 +35,7 @@
             android:ellipsize="end"
             android:maxLength="50"
             android:maxLines="2"
-            tools:text="asdf asdf asdf asdfk jashdfkljas dhflkjasdh flkjasdhfkl jasdhf " />
+            tools:text="Description text" />
 
     </LinearLayout>
 

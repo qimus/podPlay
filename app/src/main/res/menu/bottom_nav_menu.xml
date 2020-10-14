@@ -2,16 +2,16 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
-        android:id="@+id/menu_podcasts"
+        android:id="@+id/searchFragment"
         android:enabled="true"
         android:icon="@android:drawable/ic_menu_search"
         android:title="Search"
         app:showAsAction="ifRoom"/>
 
     <item
-        android:id="@+id/menu_downloads"
+        android:id="@+id/downloadedPodcastFragment"
         android:enabled="true"
-        android:icon="@android:drawable/stat_sys_download"
+        android:icon="@android:drawable/stat_sys_download_done"
         android:title="Downloads"
         app:showAsAction="ifRoom"/>
 

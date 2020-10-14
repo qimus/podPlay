@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_graph"
-    app:startDestination="@id/downloadedPodcastFragment">
+    app:startDestination="@id/searchFragment">
 
     <fragment
         android:id="@+id/downloadedPodcastFragment"
@@ -10,7 +11,9 @@
         android:label="DownloadedPodcastFragment">
         <action
             android:id="@+id/action_downloadedPodcastFragment_to_episodePlayerFragment"
-            app:destination="@id/episodePlayerFragment" />
+            app:destination="@id/episodePlayerFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out" />
     </fragment>
     <fragment
         android:id="@+id/searchFragment"
@@ -19,6 +22,11 @@
         <action
             android:id="@+id/action_searchFragment_to_podcastDetailsFragment"
             app:destination="@id/podcastDetailsFragment" />
+        <action
+            android:id="@+id/action_searchFragment_to_downloadedPodcastFragment"
+            app:destination="@id/downloadedPodcastFragment"
+            app:enterAnim="@android:anim/fade_in"
+            app:exitAnim="@android:anim/fade_out" />
     </fragment>
     <fragment
         android:id="@+id/podcastDetailsFragment"
@@ -31,5 +39,9 @@
     <fragment
         android:id="@+id/episodePlayerFragment"
         android:name="ru.den.podplay.ui.EpisodePlayerFragment"
-        android:label="EpisodePlayerFragment" />
+        android:label="EpisodePlayerFragment" >
+        <argument
+            android:name="mediaInfo"
+            app:argType="ru.den.podplay.ui.EpisodePlayerFragment$MediaInfo" />
+    </fragment>
 </navigation>

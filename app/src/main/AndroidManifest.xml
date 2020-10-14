@@ -42,6 +42,10 @@
         <service android:name=".service.DownloadService"
             android:permission="android.permission.BIND_JOB_SERVICE" />
 
+        <provider
+            android:authorities="ru.den.podplay.PodcastSearchSuggestProvider"
+            android:name=".provider.PodcastSearchSuggestProvider" />
+
     </application>
 
 </manifest>

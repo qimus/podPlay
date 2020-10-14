@@ -22,6 +22,7 @@ import android.view.SurfaceHolder
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.LinearInterpolator
+import android.widget.ProgressBar
 import android.widget.SeekBar
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
@@ -46,6 +47,8 @@ class EpisodePlayerFragment : Fragment() {
     private var mediaPlayer: MediaPlayer? = null
     private var playOnPrepare = false
     private var isVideo = false
+
+    private lateinit var progressBar: ProgressBar
 
     private var mediaInfo: MediaInfo? = null
 
@@ -92,7 +95,21 @@ class EpisodePlayerFragment : Fragment() {
         }
         setupControls()
         updateControls()
-        (activity as? BottomBarHolder)?.hideBottomNavBar()
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        progressBar = view.findViewById(R.id.progress_bar)
+    }
+
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        (activity as PodcastActivity).hideBottomNavBar()
+    }
+
+    override fun onDetach() {
+        super.onDetach()
+        (activity as PodcastActivity).showBottomNavBar()
     }
 
     override fun onStart() {
@@ -211,8 +228,7 @@ class EpisodePlayerFragment : Fragment() {
     }
 
     private fun updateControlsFromController() {
-        val fragmentActivity = activity as FragmentActivity
-        val controller = MediaControllerCompat.getMediaController(fragmentActivity)
+        val controller = MediaControllerCompat.getMediaController(requireActivity())
         if (controller != null) {
             val metadata = controller.metadata
             if (metadata != null) {
@@ -371,6 +387,10 @@ class EpisodePlayerFragment : Fragment() {
 
     private fun handleStateChange(state: Int, position: Long, speed: Float) {
         val isPlaying = state == PlaybackStateCompat.STATE_PLAYING
+        val isLoading = state == PlaybackStateCompat.STATE_BUFFERING
+
+        Timber.d("handleStateChange: $state")
+
         playToggleButton.isActivated = isPlaying
         val progress = position.toInt()
         seekBar.progress = progress
@@ -379,6 +399,18 @@ class EpisodePlayerFragment : Fragment() {
         progressAnimator?.let {
             it.cancel()
             progressAnimator = null
+        }
+
+        if (isLoading) {
+            replayButton.isEnabled = false
+            forwardButton.isEnabled = false
+            playToggleButton.visibility = View.INVISIBLE
+            progressBar.visibility = View.VISIBLE
+        } else {
+            replayButton.isEnabled = true
+            forwardButton.isEnabled = true
+            playToggleButton.visibility = View.VISIBLE
+            progressBar.visibility = View.GONE
         }
 
         if (isPlaying) {
@@ -392,13 +424,11 @@ class EpisodePlayerFragment : Fragment() {
     inner class MediaControllerCallback : MediaControllerCompat.Callback() {
         override fun onMetadataChanged(metadata: MediaMetadataCompat?) {
             super.onMetadataChanged(metadata)
-            println("metadata changed to ${metadata?.getString(MediaMetadataCompat.METADATA_KEY_MEDIA_URI)}")
             metadata?.let { updateControlsFromMetadata(it) }
         }
 
         override fun onPlaybackStateChanged(state: PlaybackStateCompat?) {
             super.onPlaybackStateChanged(state)
-            println("state changed to $state")
             val state = state ?: return
             handleStateChange(state.state, state.position, state.playbackSpeed)
         }

@@ -10,10 +10,7 @@ import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import timber.log.Timber
-import java.io.File
-import java.io.FileInputStream
 import java.lang.Exception
-import java.net.URI
 
 class PodplayMediaCallback(
     val context: Context,
@@ -28,6 +25,10 @@ class PodplayMediaCallback(
     private var focusRequest: AudioFocusRequest? = null
 
     var listener: PodplayMediaListener? = null
+
+    private val onPrepareListener = MediaPlayer.OnPreparedListener {
+        startPlaying()
+    }
 
     companion object {
         const val CMD_CHANGE_SPEED = "change_speed"
@@ -53,24 +54,26 @@ class PodplayMediaCallback(
         if (ensureAudioFocus()) {
             mediaSession.isActive = true
             initMediaPlayer()
+            val newMedia = this.newMedia
             prepareMediaPlayer()
-            startPlaying()
+            if (!newMedia) {
+                startPlaying()
+            }
         }
-        println("onPlay called")
     }
 
     override fun onStop() {
         super.onStop()
-        println("onStop called")
         stopPlaying()
         listener?.onStopPlaying()
+        mediaPlayer?.setOnCompletionListener(null)
     }
 
     override fun onPause() {
         super.onPause()
-        println("onPause called")
         pausePlaying()
         listener?.onPausePlaying()
+        mediaPlayer?.setOnCompletionListener(null)
     }
 
     private fun setState(state: Int, newSpeed: Float? = null) {
@@ -159,9 +162,7 @@ class PodplayMediaCallback(
     private fun initMediaPlayer() {
         if (mediaPlayer == null) {
             mediaPlayer = MediaPlayer()
-            mediaPlayer!!.setOnCompletionListener {
-                setState(PlaybackStateCompat.STATE_PAUSED)
-            }
+            mediaPlayer!!.setOnPreparedListener(onPrepareListener)
             mediaNeedsPrepare = true
         }
     }
@@ -171,23 +172,10 @@ class PodplayMediaCallback(
             newMedia = false
             mediaPlayer?.run {
                 try {
-                    if (mediaNeedsPrepare) {
-                        reset()
-                        setDataSource(context, mediaUri!!)
-                        prepare()
-                    }
-                    mediaExtras?.let { mediaExtras ->
-                        mediaSession.setMetadata(MediaMetadataCompat.Builder()
-                            .putString(MediaMetadataCompat.METADATA_KEY_TITLE,
-                                mediaExtras.getString(MediaMetadataCompat.METADATA_KEY_TITLE))
-                            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST,
-                                mediaExtras.getString(MediaMetadataCompat.METADATA_KEY_ARTIST))
-                            .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI,
-                                mediaExtras.getString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI))
-                            .putLong(MediaMetadataCompat.METADATA_KEY_DURATION,
-                                mediaPlayer?.duration?.toLong() ?: 0)
-                            .build())
-                    }
+                    reset()
+                    setDataSource(context, mediaUri!!)
+                    setState(PlaybackStateCompat.STATE_BUFFERING)
+                    prepareAsync()
                 } catch (e: Exception) {
                     setState(PlaybackStateCompat.STATE_ERROR)
                 }
@@ -196,11 +184,32 @@ class PodplayMediaCallback(
         }
     }
 
+    private fun updateMetadata() {
+        mediaExtras?.let { mediaExtras ->
+            mediaSession.setMetadata(MediaMetadataCompat.Builder()
+                .putString(
+                    MediaMetadataCompat.METADATA_KEY_TITLE,
+                    mediaExtras.getString(MediaMetadataCompat.METADATA_KEY_TITLE))
+                .putString(
+                    MediaMetadataCompat.METADATA_KEY_ARTIST,
+                    mediaExtras.getString(MediaMetadataCompat.METADATA_KEY_ARTIST))
+                .putString(
+                    MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI,
+                    mediaExtras.getString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI))
+                .putLong(
+                    MediaMetadataCompat.METADATA_KEY_DURATION,
+                    mediaPlayer?.duration?.toLong() ?: 0)
+                .build())
+        }
+    }
+
     private fun startPlaying() {
         mediaPlayer?.let {
             if (!it.isPlaying) {
+                updateMetadata()
                 it.start()
                 setState(PlaybackStateCompat.STATE_PLAYING)
+                mediaPlayer?.setOnCompletionListener { setState(PlaybackStateCompat.STATE_PAUSED) }
             }
         }
     }

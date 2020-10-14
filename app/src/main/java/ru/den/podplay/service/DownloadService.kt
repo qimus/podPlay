@@ -33,7 +33,7 @@ class DownloadService : Service() {
 
     companion object {
 
-        private const val NOTIFICATION_ID = 1
+        private const val NOTIFICATION_ID = 2
         private const val NOTIFICATION_CHANNEL = "DOWNLOAD_CHANNEL_ID"
         const val ACTION_DOWNLOAD_PODCAST = "run.den.podplay.DOWNLOAD_PODCAST"
 

@@ -17,4 +17,5 @@
     <string name="cancel">Cancel</string>
     <string name="downloaded">Downloaded</string>
     <string name="downloads">Downloads</string>
+    <string name="fragment_search_empty_stub">Search podcasts and enjoy</string>
 </resources>
