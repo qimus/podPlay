@@ -77,21 +77,21 @@ class PodcastActivity : AppCompatActivity(),
     }
 
     fun hideBottomNavBar() {
-        bottomNavigation.visibility = View.INVISIBLE
+        bottomNavigation?.visibility = View.INVISIBLE
     }
 
     fun showBottomNavBar() {
-        bottomNavigation.visibility = View.VISIBLE
+        bottomNavigation?.visibility = View.VISIBLE
     }
 
     override fun onSubscribe() {
         podcastViewModel.saveActivePodcast()
-        supportFragmentManager.popBackStack()
+        navController.popBackStack()
     }
 
     override fun onUnsubscribe() {
         podcastViewModel.deleteActivePodcast()
-        supportFragmentManager.popBackStack()
+        navController.popBackStack()
     }
 
     override fun onShowEpisodePlayer(episodeViewData: PodcastViewModel.EpisodeViewData) {

@@ -46,5 +46,8 @@ interface PodcastDao {
     fun updateDownloadInfo(model: Download)
 
     @Delete
+    fun deleteDownload(model: Download)
+
+    @Delete
     fun deletePodcast(podcast: Podcast)
 }

@@ -7,10 +7,15 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.ItemTouchHelper
+import com.google.android.material.snackbar.Snackbar
 import kotlinx.android.synthetic.main.fragment_downloaded_podcast.*
+import kotlinx.coroutines.launch
 import ru.den.podplay.R
 import ru.den.podplay.adapter.DownloadPodcastAdapter
+import ru.den.podplay.adapter.SwipeToDeleteCallback
 import ru.den.podplay.db.PodplayDatabase
 import ru.den.podplay.model.Download
 import ru.den.podplay.repository.PodcastRepo
@@ -18,7 +23,7 @@ import ru.den.podplay.service.FeedService
 import ru.den.podplay.viewmodel.DownloadPodcastViewModel
 import ru.den.podplay.viewmodel.DownloadViewModelFactory
 
-class DownloadedPodcastFragment : Fragment() {
+class DownloadedPodcastFragment : Fragment(), DownloadPodcastAdapter.DownloadPodcastAdapterListener {
     private lateinit var downloadViewModel: DownloadPodcastViewModel
     private lateinit var downloadPodcastAdapter: DownloadPodcastAdapter
 
@@ -45,12 +50,38 @@ class DownloadedPodcastFragment : Fragment() {
         activity?.title = "Downloads"
     }
 
+    override fun onSelect(download: Download) {
+        showPlayerFragment(download)
+    }
+
+    override fun onDeleted(download: Download) {
+        lastDeletedRecord = download
+        downloadViewModel.delete(download)
+        showUndoSnackbar()
+    }
+
+    private fun showUndoSnackbar() {
+        val snackbar = Snackbar.make(fragment_download_podcast_layout,
+            getString(R.string.snackbar_undo_text), Snackbar.LENGTH_LONG)
+        snackbar.setAction(getString(R.string.snackbar_undo_action)) { v ->
+            lastDeletedRecord?.let {
+                viewLifecycleOwner.lifecycleScope.launch {
+                    downloadViewModel.save(it)
+                    lastDeletedRecord = null
+                    downloadPodcastAdapter.notifyDataSetChanged()
+                }
+            }
+        }
+        snackbar.show()
+    }
 
     private fun setupAdapter() {
-        downloadPodcastAdapter = DownloadPodcastAdapter { download ->
-            showPlayerFragment(download)
-        }
+        downloadPodcastAdapter = DownloadPodcastAdapter(this)
         rv_downloads.adapter = downloadPodcastAdapter
+
+        val callback = SwipeToDeleteCallback(downloadPodcastAdapter, requireContext())
+        val touchHelper = ItemTouchHelper(callback)
+        touchHelper.attachToRecyclerView(rv_downloads)
     }
 
     private fun showPlayerFragment(download: Download) {
@@ -70,5 +101,6 @@ class DownloadedPodcastFragment : Fragment() {
         fun newInstance(): DownloadedPodcastFragment {
             return DownloadedPodcastFragment()
         }
+        private var lastDeletedRecord: Download? = null
     }
 }

@@ -73,7 +73,7 @@ class EpisodeListAdapter(
             this.episodeViewData = episodeView
             titleTextView.text = episodeView.title
             descTextView.text = HtmlUtils.htmlToSpannable(episodeView.description ?: "")
-            durationTextView.text = episodeView.duration
+            durationTextView.text = DateUtils.formatDuration(episodeView.duration)
             releaseDateTextView.text = episodeView.releaseDate.let {
                 DateUtils.dateToShortDate(it)
             }

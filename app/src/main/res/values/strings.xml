@@ -18,4 +18,6 @@
     <string name="downloaded">Downloaded</string>
     <string name="downloads">Downloads</string>
     <string name="fragment_search_empty_stub">Search podcasts and enjoy</string>
+    <string name="snackbar_undo_text">Undo operation?</string>
+    <string name="snackbar_undo_action">Undo</string>
 </resources>

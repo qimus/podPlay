@@ -3,6 +3,7 @@ package ru.den.podplay.ui
 import android.animation.ValueAnimator
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
 import android.graphics.Color
 import android.media.AudioManager
 import android.media.MediaPlayer
@@ -16,13 +17,11 @@ import android.support.v4.media.session.MediaControllerCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.text.format.DateUtils
-import android.text.method.ScrollingMovementMethod
 import android.view.LayoutInflater
 import android.view.SurfaceHolder
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.LinearInterpolator
-import android.widget.ProgressBar
 import android.widget.SeekBar
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
@@ -48,8 +47,6 @@ class EpisodePlayerFragment : Fragment() {
     private var playOnPrepare = false
     private var isVideo = false
 
-    private lateinit var progressBar: ProgressBar
-
     private var mediaInfo: MediaInfo? = null
 
     companion object {
@@ -74,9 +71,6 @@ class EpisodePlayerFragment : Fragment() {
         } else {
             false
         }
-        if (!isVideo) {
-            initMediaBrowser()
-        }
     }
 
     override fun onCreateView(
@@ -97,23 +91,12 @@ class EpisodePlayerFragment : Fragment() {
         updateControls()
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-        progressBar = view.findViewById(R.id.progress_bar)
-    }
-
-    override fun onAttach(context: Context) {
-        super.onAttach(context)
-        (activity as PodcastActivity).hideBottomNavBar()
-    }
-
-    override fun onDetach() {
-        super.onDetach()
-        (activity as PodcastActivity).showBottomNavBar()
-    }
-
     override fun onStart() {
         super.onStart()
+        if (!isVideo) {
+            initMediaBrowser()
+        }
+        (activity as PodcastActivity).hideBottomNavBar()
         if (!isVideo) {
             if (mediaBrowser.isConnected) {
                 val fragmentActivity = activity as FragmentActivity
@@ -144,6 +127,12 @@ class EpisodePlayerFragment : Fragment() {
             mediaPlayer?.release()
             mediaPlayer = null
         }
+        mediaBrowser.disconnect()
+    }
+
+    override fun onDetach() {
+        super.onDetach()
+        (activity as PodcastActivity).showBottomNavBar()
     }
 
     private fun initMediaSession() {
@@ -257,9 +246,12 @@ class EpisodePlayerFragment : Fragment() {
     private fun updateControls() {
         episodeTitleTextView.text = mediaInfo?.title
         val htmlDesc = mediaInfo?.description ?: ""
-        val descSpan = HtmlUtils.htmlToSpannable(htmlDesc)
-        episodeDescTextView.text = descSpan
-        episodeDescTextView.movementMethod = ScrollingMovementMethod()
+        HtmlUtils.setTextViewHTML(episodeDescTextView, htmlDesc) { span ->
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse(span.url)
+            }
+            startActivity(intent)
+        }
 
         val fragmentActivity = activity as FragmentActivity
         Glide.with(fragmentActivity)
@@ -332,6 +324,7 @@ class EpisodePlayerFragment : Fragment() {
     }
 
     private fun setupControls() {
+        activity?.title = mediaInfo?.title ?: ""
         playToggleButton.setOnClickListener { togglePlayPause() }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             speedButton.setOnClickListener { changeSpeed() }
@@ -405,12 +398,12 @@ class EpisodePlayerFragment : Fragment() {
             replayButton.isEnabled = false
             forwardButton.isEnabled = false
             playToggleButton.visibility = View.INVISIBLE
-            progressBar.visibility = View.VISIBLE
+            progress_bar.visibility = View.VISIBLE
         } else {
             replayButton.isEnabled = true
             forwardButton.isEnabled = true
             playToggleButton.visibility = View.VISIBLE
-            progressBar.visibility = View.GONE
+            progress_bar.visibility = View.GONE
         }
 
         if (isPlaying) {
@@ -439,17 +432,17 @@ class EpisodePlayerFragment : Fragment() {
             super.onConnected()
             registerMediaController(mediaBrowser.sessionToken)
             updateControlsFromController()
-            println("onConnected")
+            Timber.d("onConnected")
         }
 
         override fun onConnectionSuspended() {
             super.onConnectionSuspended()
-            println("onConnectionSuspended")
+            Timber.d("onConnectionSuspended")
         }
 
         override fun onConnectionFailed() {
             super.onConnectionFailed()
-            println("onConnectionFailed")
+            Timber.d("onConnectionFailed")
         }
     }
 

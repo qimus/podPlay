@@ -1,5 +1,6 @@
 package ru.den.podplay.util
 
+import android.text.format.DateUtils
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -26,5 +27,13 @@ object DateUtils {
     fun dateToShortDate(date: Date): String {
         val outputFormat = DateFormat.getDateInstance(DateFormat.SHORT, Locale.getDefault())
         return outputFormat.format(date)
+    }
+
+    fun formatDuration(time: String): String {
+        return if (time.indexOf(":") > -1) {
+            time
+        } else {
+            DateUtils.formatElapsedTime(time.toLong())
+        }
     }
 }

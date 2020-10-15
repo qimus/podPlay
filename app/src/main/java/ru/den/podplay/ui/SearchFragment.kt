@@ -60,6 +60,9 @@ class SearchFragment : Fragment(), PodcastListAdapter.PodcastListApapterListener
     }
 
     private fun setupObservable() {
+        if (searchViewModel.podcasts.value!!.isNotEmpty()) {
+            podcastListAdapter.addItems(searchViewModel.podcasts.value!!)
+        }
         searchViewModel.podcasts.observe(viewLifecycleOwner, Observer { podcasts ->
             if (isLoading) {
                 podcastListAdapter.hideLoader()
@@ -91,10 +94,13 @@ class SearchFragment : Fragment(), PodcastListAdapter.PodcastListApapterListener
     }
 
     private fun showSubscribedPodcasts() {
-        val podcasts = podcastViewModel.getPodcasts()?.value
-        if (podcasts != null) {
+        val podcasts = podcastViewModel.getPodcasts()?.value ?: return
+
+        if (podcasts.isNotEmpty()) {
             activity?.title = getString(R.string.subscribed_podcasts)
             podcastListAdapter.setSearchData(podcasts)
+        } else {
+            activity?.title = getString(R.string.app_name)
         }
     }
 
@@ -227,7 +233,7 @@ class SearchFragment : Fragment(), PodcastListAdapter.PodcastListApapterListener
         if (term == null) return
         showProgressBar()
         saveRecentQueries(term)
-        searchMenuItem.collapseActionView()
+        (searchMenuItem.actionView as SearchView).setQuery(term, false)
         searchViewModel.searchPodcasts(term, limit, searchOffset)
     }
 }

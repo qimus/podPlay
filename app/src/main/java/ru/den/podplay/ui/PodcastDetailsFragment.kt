@@ -8,6 +8,7 @@ import android.text.method.ScrollingMovementMethod
 import android.view.*
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
@@ -103,6 +104,7 @@ class PodcastDetailsFragment : Fragment(), EpisodeListAdapter.EpisodeListAdapter
     }
 
     private fun setupControls() {
+        activity?.title = podcastViewModel.activePodcastViewData?.feedTitle ?: ""
         feedDescTextView.movementMethod = ScrollingMovementMethod()
         episodeRecyclerView.setHasFixedSize(true)
 
@@ -134,7 +136,7 @@ class PodcastDetailsFragment : Fragment(), EpisodeListAdapter.EpisodeListAdapter
             return
         }
 
-        GlobalScope.launch {
+        viewLifecycleOwner.lifecycleScope.launch {
             val download = Download(
                 null,
                 episodeViewData.guid,

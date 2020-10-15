@@ -11,7 +11,7 @@ import ru.den.podplay.util.DateUtils
 class SearchViewModel(application: Application) : AndroidViewModel(application) {
     var itunesRepo: ItunesRepo? = null
 
-    private var _podcasts: MutableLiveData<List<PodcastSummaryViewData>> = MutableLiveData()
+    private var _podcasts: MutableLiveData<List<PodcastSummaryViewData>> = MutableLiveData(listOf())
     val podcasts: LiveData<List<PodcastSummaryViewData>>
         get() = _podcasts
 

@@ -170,5 +170,11 @@ class PodcastRepo(
         }
     }
 
+    fun delete(download: Download) {
+        GlobalScope.launch {
+            podcastDao.deleteDownload(download)
+        }
+    }
+
     class PodcastUpdateInfo(val feedUrl: String, val name: String, val newCount: Int)
 }

@@ -9,15 +9,17 @@ import kotlinx.android.synthetic.main.search_item.view.iv_podcast_logo
 import ru.den.podplay.R
 import ru.den.podplay.ext.inflate
 import ru.den.podplay.model.Download
+import ru.den.podplay.model.DownloadStatus
+import ru.den.podplay.util.DateUtils
 
-class DownloadPodcastAdapter(private val onSelect: (Download) -> Unit) :
-    RecyclerView.Adapter<DownloadPodcastAdapter.DownloadPodcastViewHolder>() {
+class DownloadPodcastAdapter(private val listener: DownloadPodcastAdapterListener) :
+    RecyclerView.Adapter<DownloadPodcastAdapter.DownloadPodcastViewHolder>(), SwipeToDeleteCallback.Callback {
 
     private var items: MutableList<Download> = mutableListOf()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DownloadPodcastViewHolder {
         val view = parent.context.inflate(R.layout.download_podcast_item, parent, false)
-        return DownloadPodcastViewHolder(view, onSelect)
+        return DownloadPodcastViewHolder(view, listener::onSelect)
     }
 
     override fun onBindViewHolder(holder: DownloadPodcastViewHolder, position: Int) {
@@ -28,6 +30,12 @@ class DownloadPodcastAdapter(private val onSelect: (Download) -> Unit) :
 
     fun setItems(items: MutableList<Download>) {
         this.items = items
+        notifyDataSetChanged()
+    }
+
+    override fun deleteItem(position: Int) {
+        listener.onDeleted(items[position])
+        items.removeAt(position)
         notifyDataSetChanged()
     }
 
@@ -52,9 +60,24 @@ class DownloadPodcastAdapter(private val onSelect: (Download) -> Unit) :
             titleTextView.text = item.podcastTitle
             descriptionTextView.text = item.episodeTitle
             duration.text = item.duration
+            item.duration?.let {
+                duration.text = DateUtils.formatDuration(it)
+            }
+            if (item.status != DownloadStatus.DOWNLOADED) {
+                itemView.alpha = 0.5f
+                itemView.isEnabled = false
+            } else {
+                itemView.alpha = 1f
+                itemView.isEnabled = true
+            }
             Glide.with(itemView)
                 .load(item.imageUrl)
                 .into(podcastLogoImageView)
         }
+    }
+
+    interface DownloadPodcastAdapterListener {
+        fun onSelect(download: Download)
+        fun onDeleted(download: Download)
     }
 }

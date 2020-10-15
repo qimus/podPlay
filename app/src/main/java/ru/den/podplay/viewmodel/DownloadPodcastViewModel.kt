@@ -20,4 +20,12 @@ class DownloadPodcastViewModel(val repo: PodcastRepo) : ViewModel() {
     fun getAll(): LiveData<List<Download>> {
         return repo.findAllDownloads()
     }
+
+    fun delete(download: Download) {
+        repo.delete(download)
+    }
+
+    fun save(download: Download) {
+        repo.save(download)
+    }
 }
