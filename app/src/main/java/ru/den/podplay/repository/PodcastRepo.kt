@@ -62,7 +62,8 @@ class PodcastRepo(
                 it.url ?: "",
                 it.type ?: "",
                 DateUtils.xmlDateToDate(it.pubDate),
-                it.duration ?: ""
+                it.duration ?: "",
+                null
             )
         }
     }

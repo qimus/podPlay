@@ -1,6 +1,7 @@
 package ru.den.podplay.util
 
 import android.text.format.DateUtils
+import java.lang.Exception
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -11,9 +12,9 @@ object DateUtils {
             return "-"
         }
 
-        val inFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+        val inFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.ENGLISH)
         val date = inFormat.parse(jsonDate) ?: return "-"
-        val outputFormat = DateFormat.getDateInstance(DateFormat.SHORT, Locale.getDefault())
+        val outputFormat = DateFormat.getDateInstance(DateFormat.SHORT, Locale.ENGLISH)
 
         return outputFormat.format(date)
     }
@@ -21,11 +22,15 @@ object DateUtils {
     fun xmlDateToDate(dateString: String?): Date {
         val date = dateString ?: return Date()
         val inFormat = SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", Locale.ENGLISH)
-        return inFormat.parse(date) ?: Date()
+        return try {
+            inFormat.parse(date) ?: Date()
+        } catch (e: Exception) {
+            Date()
+        }
     }
 
     fun dateToShortDate(date: Date): String {
-        val outputFormat = DateFormat.getDateInstance(DateFormat.SHORT, Locale.getDefault())
+        val outputFormat = DateFormat.getDateInstance(DateFormat.SHORT, Locale.ENGLISH)
         return outputFormat.format(date)
     }
 

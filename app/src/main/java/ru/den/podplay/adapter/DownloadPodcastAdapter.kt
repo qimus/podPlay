@@ -1,5 +1,6 @@
 package ru.den.podplay.adapter
 
+import android.graphics.drawable.AnimationDrawable
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
@@ -44,6 +45,7 @@ class DownloadPodcastAdapter(private val listener: DownloadPodcastAdapterListene
         private val titleTextView = v.tv_title
         private val descriptionTextView = v.tv_description
         private val duration = v.tv_duration
+        private val downloadImageView = v.iv_download
 
         private var downloadItem: Download? = null
 
@@ -66,9 +68,12 @@ class DownloadPodcastAdapter(private val listener: DownloadPodcastAdapterListene
             if (item.status != DownloadStatus.DOWNLOADED) {
                 itemView.alpha = 0.5f
                 itemView.isEnabled = false
+                downloadImageView.visibility = View.VISIBLE
+                (downloadImageView.drawable as AnimationDrawable).start()
             } else {
                 itemView.alpha = 1f
                 itemView.isEnabled = true
+                downloadImageView.visibility = View.INVISIBLE
             }
             Glide.with(itemView)
                 .load(item.imageUrl)

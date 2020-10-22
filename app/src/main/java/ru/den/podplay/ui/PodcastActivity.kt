@@ -7,9 +7,9 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.NavController
 import androidx.navigation.Navigation
-import androidx.navigation.ui.NavigationUI
 import androidx.work.*
 import kotlinx.android.synthetic.main.activity_podcast.*
+import np.com.susanthapa.curved_bottom_navigation.CbnMenuItem
 import ru.den.podplay.R
 import ru.den.podplay.db.PodplayDatabase
 import ru.den.podplay.repository.ItunesRepo
@@ -43,7 +43,20 @@ class PodcastActivity : AppCompatActivity(),
 
     private fun setupBottomNavigation() {
         navController = Navigation.findNavController(this, R.id.nav_host_fragment)
-        NavigationUI.setupWithNavController(bottomNavigation, navController)
+        val menuItems = arrayOf(
+            CbnMenuItem(
+                R.drawable.ic_search,
+                R.drawable.avd_search,
+                R.id.searchFragment
+            ),
+            CbnMenuItem(
+                R.drawable.ic_download,
+                R.drawable.avd_download,
+                R.id.downloadedPodcastFragment
+            )
+        )
+        bottomNavigation.setMenuItems(menuItems)
+        bottomNavigation.setupWithNavController(navController)
     }
 
     private fun setupViewModels() {

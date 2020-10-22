@@ -17,6 +17,7 @@ data class RssFeedResponse(
         var pubDate: String? = null,
         var duration: String? = null,
         var url: String? = null,
-        var type: String? = null
+        var type: String? = null,
+        var thumbnail: String? = null
     )
 }

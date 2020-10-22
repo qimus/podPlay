@@ -9,6 +9,7 @@ import android.graphics.drawable.Drawable
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
+import ru.den.podplay.R
 import kotlin.math.abs
 
 class SwipeToDeleteCallback(
@@ -16,13 +17,9 @@ class SwipeToDeleteCallback(
     context: Context
 ) : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
 
-    private val icon: Drawable = ContextCompat.getDrawable(context, android.R.drawable.ic_menu_delete)!!
+    private val icon: Drawable = ContextCompat.getDrawable(context, R.drawable.ic_trash)!!
     private val background = ColorDrawable(Color.RED)
     private val iconAlphaEvaluator = IntEvaluator()
-
-    init {
-        icon.setTint(context.resources.getColor(android.R.color.white))
-    }
 
     override fun onMove(
         recyclerView: RecyclerView,
@@ -41,7 +38,7 @@ class SwipeToDeleteCallback(
         recyclerView: RecyclerView,
         viewHolder: RecyclerView.ViewHolder
     ): Int {
-        return if (viewHolder.itemView.isEnabled == false) {
+        return if (!viewHolder.itemView.isEnabled) {
             0
         } else {
             ItemTouchHelper.LEFT

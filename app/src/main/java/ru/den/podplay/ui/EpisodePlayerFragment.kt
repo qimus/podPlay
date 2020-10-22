@@ -5,8 +5,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.media.AudioManager
-import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -18,15 +16,17 @@ import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
 import android.text.format.DateUtils
 import android.view.LayoutInflater
-import android.view.SurfaceHolder
 import android.view.View
 import android.view.ViewGroup
 import android.view.animation.LinearInterpolator
 import android.widget.SeekBar
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import com.bumptech.glide.Glide
+import com.google.android.exoplayer2.ExoPlayer
+import com.google.android.exoplayer2.SimpleExoPlayer
 import kotlinx.android.parcel.Parcelize
 import kotlinx.android.synthetic.main.fragment_episode_player.*
 import ru.den.podplay.R
@@ -43,9 +43,11 @@ class EpisodePlayerFragment : Fragment() {
     private var draggingScrubber = false
     private var progressAnimator: ValueAnimator? = null
     private var mediaSession: MediaSessionCompat? = null
-    private var mediaPlayer: MediaPlayer? = null
+    private var exoPlayer: ExoPlayer? = null
     private var playOnPrepare = false
     private var isVideo = false
+    private var playAfterResume = false
+    private var isPlaying = false
 
     private var mediaInfo: MediaInfo? = null
 
@@ -85,7 +87,7 @@ class EpisodePlayerFragment : Fragment() {
         super.onActivityCreated(savedInstanceState)
         if (isVideo) {
             initMediaSession()
-            initVideoPlayer()
+            initMediaPlayer()
         }
         setupControls()
         updateControls()
@@ -93,10 +95,16 @@ class EpisodePlayerFragment : Fragment() {
 
     override fun onStart() {
         super.onStart()
+
         if (!isVideo) {
             initMediaBrowser()
+        } else {
+            initMediaSession()
+            initMediaPlayer()
         }
+
         (activity as PodcastActivity).hideBottomNavBar()
+
         if (!isVideo) {
             if (mediaBrowser.isConnected) {
                 val fragmentActivity = activity as FragmentActivity
@@ -119,15 +127,23 @@ class EpisodePlayerFragment : Fragment() {
                 MediaControllerCompat.getMediaController(fragmentActivity).unregisterCallback(it)
             }
         }
-        if (isVideo) {
-            mediaPlayer?.setDisplay(null)
-        }
 
         if (!fragmentActivity.isChangingConfigurations) {
-            mediaPlayer?.release()
-            mediaPlayer = null
+            if (isPlaying) {
+                exoPlayer?.pause()
+                playAfterResume = true
+            }
         }
-        mediaBrowser.disconnect()
+
+        if (!isVideo) {
+            mediaBrowser.disconnect()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        releasePlayer()
+        (activity as? AppCompatActivity)?.supportActionBar?.show()
     }
 
     override fun onDetach() {
@@ -143,69 +159,27 @@ class EpisodePlayerFragment : Fragment() {
         registerMediaController(mediaSession!!.sessionToken)
     }
 
-    private fun setSurfaceSize() {
-        val mediaPlayer = mediaPlayer ?: return
-        val videoWidth = mediaPlayer.videoWidth
-        val videoHeight = mediaPlayer.videoHeight
-
-        val parent = videoSurfaceView.parent as View
-        val containerWidth = parent.width
-        val containerHeight = parent.height
-
-        val layoutAspectRatio = containerWidth.toFloat() / containerHeight
-        val videoAspectRatio = videoWidth.toFloat() / videoHeight
-
-        val layoutParams = videoSurfaceView.layoutParams
-        if (videoAspectRatio > layoutAspectRatio) {
-            layoutParams.height = (containerWidth / videoAspectRatio).toInt()
-        } else {
-            layoutParams.width = (containerHeight * videoAspectRatio).toInt()
-        }
-        videoSurfaceView.layoutParams = layoutParams
-    }
-
     private fun initMediaPlayer() {
-        if (mediaPlayer == null) {
-            mediaPlayer = MediaPlayer()
-            mediaPlayer?.let {
-                it.setAudioStreamType(AudioManager.STREAM_MUSIC)
-                it.setDataSource(mediaInfo?.mediaUrl)
-                it.setOnPreparedListener {
-                    val fragmentActivity = activity as FragmentActivity
-                    val episodeMediaCallback = PodplayMediaCallback(fragmentActivity,
-                        mediaSession!!, it)
-                    mediaSession!!.setCallback(episodeMediaCallback)
-                    setSurfaceSize()
-                    if (playOnPrepare) {
-                        togglePlayPause()
-                    }
-                }
-                it.prepareAsync()
-            }
+        if (exoPlayer == null) {
+            exoPlayer = SimpleExoPlayer.Builder(requireContext()).build()
+            exoPlayerView.player = exoPlayer
+            val fragmentActivity = activity as FragmentActivity
+            val episodeMediaCallback = PodplayMediaCallback(fragmentActivity,
+                mediaSession!!, exoPlayer)
+            mediaSession!!.setCallback(episodeMediaCallback)
         } else {
-            setSurfaceSize()
+            exoPlayerView.player = exoPlayer
+        }
+
+        if (playOnPrepare && playAfterResume) {
+            togglePlayPause()
+            playAfterResume = false
         }
     }
 
-    private fun initVideoPlayer() {
-        videoSurfaceView.visibility = View.VISIBLE
-        val surfaceHolder = videoSurfaceView.holder
-        surfaceHolder.addCallback(object : SurfaceHolder.Callback {
-            override fun surfaceChanged(
-                holder: SurfaceHolder?,
-                format: Int,
-                width: Int,
-                height: Int
-            ) {
-            }
-
-            override fun surfaceDestroyed(holder: SurfaceHolder?) {
-            }
-
-            override fun surfaceCreated(holder: SurfaceHolder?) {
-                initMediaPlayer()
-            }
-        })
+    private fun releasePlayer() {
+        exoPlayer?.release()
+        exoPlayer = null
     }
 
     private fun setupVideoUi() {
@@ -221,8 +195,7 @@ class EpisodePlayerFragment : Fragment() {
         if (controller != null) {
             val metadata = controller.metadata
             if (metadata != null) {
-                handleStateChange(controller.playbackState.state,
-                    controller.playbackState.position, playerSpeed)
+                handleStateChange(controller.playbackState)
                 updateControlsFromMetadata(metadata)
             }
         }
@@ -258,7 +231,7 @@ class EpisodePlayerFragment : Fragment() {
             .load(mediaInfo?.imageUrl)
             .into(episodeImageView)
 
-        mediaPlayer?.let {
+        exoPlayer?.let {
             updateControlsFromController()
         }
     }
@@ -378,14 +351,20 @@ class EpisodePlayerFragment : Fragment() {
         }
     }
 
-    private fun handleStateChange(state: Int, position: Long, speed: Float) {
-        val isPlaying = state == PlaybackStateCompat.STATE_PLAYING
-        val isLoading = state == PlaybackStateCompat.STATE_BUFFERING
+    private fun handleStateChange(state: PlaybackStateCompat) {
+        val playbackState = state.state
+        val extras = state.extras
+        isPlaying = playbackState == PlaybackStateCompat.STATE_PLAYING
 
-        Timber.d("handleStateChange: $state")
+        Timber.d("handleStateChange $state")
+
+        if (playbackState == PlaybackStateCompat.STATE_ERROR) {
+            val message = extras?.getString("message") ?: ""
+            Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+        }
 
         playToggleButton.isActivated = isPlaying
-        val progress = position.toInt()
+        val progress = state.position.toInt()
         seekBar.progress = progress
         speedButton.text = "${playerSpeed}x"
 
@@ -394,7 +373,7 @@ class EpisodePlayerFragment : Fragment() {
             progressAnimator = null
         }
 
-        if (isLoading) {
+        if (state.state == PlaybackStateCompat.STATE_BUFFERING) {
             replayButton.isEnabled = false
             forwardButton.isEnabled = false
             playToggleButton.visibility = View.INVISIBLE
@@ -410,7 +389,7 @@ class EpisodePlayerFragment : Fragment() {
             if (isVideo) {
                 setupVideoUi()
             }
-            animateScrubber(progress, speed)
+            animateScrubber(progress, state.playbackSpeed)
         }
     }
 
@@ -422,8 +401,8 @@ class EpisodePlayerFragment : Fragment() {
 
         override fun onPlaybackStateChanged(state: PlaybackStateCompat?) {
             super.onPlaybackStateChanged(state)
-            val state = state ?: return
-            handleStateChange(state.state, state.position, state.playbackSpeed)
+            @Suppress("NAME_SHADOWING") val state = state ?: return
+            handleStateChange(state)
         }
     }
 

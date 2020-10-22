@@ -4,6 +4,7 @@ import android.content.Context
 import android.webkit.MimeTypeMap
 import ru.den.podplay.model.Download
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
@@ -15,6 +16,10 @@ interface ProgressDownloadCallback {
 }
 
 object FileUtils {
+    fun getTrashDir(context: Context): File {
+        return File(context.filesDir, "trash")
+    }
+
     fun getFileFor(context: Context, download: Download): File {
         val dir = File(context.filesDir, "podcasts")
         if (!dir.exists()) {
@@ -24,6 +29,10 @@ object FileUtils {
 
         val fileName = "${download.id}.${MimeTypeMap.getFileExtensionFromUrl(download.mediaUrl)}"
         return File(dir, fileName)
+    }
+
+    fun getFileName(path: String): String {
+        return File(path).name
     }
 
     fun download(file: File, url: String, callback: ProgressDownloadCallback?) {
@@ -53,5 +62,29 @@ object FileUtils {
         }
 
         connection.disconnect()
+    }
+
+    fun moveFile(source: File, dest: File) {
+        val input = FileInputStream(source)
+        val out = if (dest.isDirectory) {
+            val outputFile = File(dest, source.name)
+            FileOutputStream(outputFile)
+        } else {
+            FileOutputStream(dest)
+        }
+
+        input.use {
+            out.use {
+                val buffer = ByteArray(1024)
+                var readCount = input.read(buffer)
+
+                while (readCount > 0) {
+                    out.write(buffer)
+                    readCount = input.read(buffer)
+                }
+            }
+        }
+
+        source.delete()
     }
 }

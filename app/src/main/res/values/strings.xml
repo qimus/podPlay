@@ -20,4 +20,9 @@
     <string name="fragment_search_empty_stub">Search podcasts and enjoy</string>
     <string name="snackbar_undo_text">Undo operation?</string>
     <string name="snackbar_undo_action">Undo</string>
+    <string name="media_callback_error_io">File or network related operation errors</string>
+    <string name="media_callback_error_malformed">Bitstream is not conforming to the related coding standard or file spec</string>
+    <string name="media_callback_error_unsupported">Unsupported format</string>
+    <string name="media_callback_error_timeout">Timeout error</string>
+    <string name="media_callback_error_unkown">Unsupported media</string>
 </resources>

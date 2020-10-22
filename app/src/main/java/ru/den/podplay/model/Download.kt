@@ -1,6 +1,7 @@
 package ru.den.podplay.model
 
 import androidx.room.*
+import java.io.File
 import java.util.*
 
 enum class DownloadStatus(val value: Int) {
@@ -60,4 +61,10 @@ data class Download(
     var status: DownloadStatus = DownloadStatus.NOT_DOWNLOADED,
     var file: String = "",
     var size: Long = 0
-)
+) {
+    fun getFileIfExists(): File? {
+        if (this.file.isEmpty()) return null
+        val file = File(this.file)
+        return if (file.exists()) file else null
+    }
+}

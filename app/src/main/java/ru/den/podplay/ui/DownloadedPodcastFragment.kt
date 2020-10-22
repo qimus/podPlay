@@ -9,7 +9,9 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.DividerItemDecoration
 import androidx.recyclerview.widget.ItemTouchHelper
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.android.synthetic.main.fragment_downloaded_podcast.*
 import kotlinx.coroutines.launch
@@ -56,7 +58,7 @@ class DownloadedPodcastFragment : Fragment(), DownloadPodcastAdapter.DownloadPod
 
     override fun onDeleted(download: Download) {
         lastDeletedRecord = download
-        downloadViewModel.delete(download)
+        downloadViewModel.delete(requireContext(), download)
         showUndoSnackbar()
     }
 
@@ -67,6 +69,7 @@ class DownloadedPodcastFragment : Fragment(), DownloadPodcastAdapter.DownloadPod
             lastDeletedRecord?.let {
                 viewLifecycleOwner.lifecycleScope.launch {
                     downloadViewModel.save(it)
+                    downloadViewModel.restore(requireContext(), it)
                     lastDeletedRecord = null
                     downloadPodcastAdapter.notifyDataSetChanged()
                 }
@@ -78,6 +81,11 @@ class DownloadedPodcastFragment : Fragment(), DownloadPodcastAdapter.DownloadPod
     private fun setupAdapter() {
         downloadPodcastAdapter = DownloadPodcastAdapter(this)
         rv_downloads.adapter = downloadPodcastAdapter
+
+        val layoutManager = LinearLayoutManager(requireContext())
+        rv_downloads.layoutManager = layoutManager
+        val dividerItemDecoration = DividerItemDecoration(context, layoutManager.orientation)
+        rv_downloads.addItemDecoration(dividerItemDecoration)
 
         val callback = SwipeToDeleteCallback(downloadPodcastAdapter, requireContext())
         val touchHelper = ItemTouchHelper(callback)

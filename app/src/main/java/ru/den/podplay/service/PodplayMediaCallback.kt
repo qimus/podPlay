@@ -9,13 +9,12 @@ import android.os.ResultReceiver
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
-import timber.log.Timber
-import java.lang.Exception
+import com.google.android.exoplayer2.*
 
 class PodplayMediaCallback(
     val context: Context,
     val mediaSession: MediaSessionCompat,
-    var mediaPlayer: MediaPlayer? = null
+    var exoPlayer: ExoPlayer? = null
 ) : MediaSessionCompat.Callback() {
     private var mediaUri: Uri? = null
     private var newMedia: Boolean = false
@@ -25,10 +24,6 @@ class PodplayMediaCallback(
     private var focusRequest: AudioFocusRequest? = null
 
     var listener: PodplayMediaListener? = null
-
-    private val onPrepareListener = MediaPlayer.OnPreparedListener {
-        startPlaying()
-    }
 
     companion object {
         const val CMD_CHANGE_SPEED = "change_speed"
@@ -54,11 +49,8 @@ class PodplayMediaCallback(
         if (ensureAudioFocus()) {
             mediaSession.isActive = true
             initMediaPlayer()
-            val newMedia = this.newMedia
             prepareMediaPlayer()
-            if (!newMedia) {
-                startPlaying()
-            }
+            startPlaying()
         }
     }
 
@@ -66,49 +58,48 @@ class PodplayMediaCallback(
         super.onStop()
         stopPlaying()
         listener?.onStopPlaying()
-        mediaPlayer?.setOnCompletionListener(null)
     }
 
     override fun onPause() {
         super.onPause()
         pausePlaying()
         listener?.onPausePlaying()
-        mediaPlayer?.setOnCompletionListener(null)
     }
 
-    private fun setState(state: Int, newSpeed: Float? = null) {
+    private fun setState(state: Int, newSpeed: Float? = null, extras: Bundle? = null) {
         var position: Long = -1
-        mediaPlayer?.let {
-            position = it.currentPosition.toLong()
+        exoPlayer?.let {
+            position = it.currentPosition / 1000
         }
 
         var speed = 1f
         if (newSpeed != null) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val state = mediaSession.controller.playbackState.state
-                if (newSpeed == null) {
-                    speed = mediaPlayer?.playbackParams?.speed ?: 1f
-                } else {
-                    speed = newSpeed
-                }
-                mediaPlayer?.let { mediaPlayer ->
-                    try {
-                        mediaPlayer.playbackParams = mediaPlayer.playbackParams.setSpeed(speed)
-                    } catch (e: Exception) {
-                        mediaPlayer.reset()
-                        mediaUri?.let { mediaUri -> mediaPlayer.setDataSource(context, mediaUri) }
-                    }
-                    mediaPlayer.prepare()
-                    mediaPlayer.playbackParams.setSpeed(speed)
-                    mediaPlayer.seekTo(position.toInt())
-                    if (state == PlaybackStateCompat.STATE_PLAYING) {
-                        mediaPlayer.start()
-                    }
-                }
+//                val state = mediaSession.controller.playbackState.state
+//                if (newSpeed == null) {
+//                    speed = mediaPlayer?.playbackParams?.speed ?: 1f
+//                } else {
+//                    speed = newSpeed
+//                }
+//                mediaPlayer?.let { mediaPlayer ->
+//                    try {
+//                        mediaPlayer.playbackParams = mediaPlayer.playbackParams.setSpeed(speed)
+//                    } catch (e: Exception) {
+//                        mediaPlayer.reset()
+//                        mediaUri?.let { mediaUri -> mediaPlayer.setDataSource(context, mediaUri) }
+//                    }
+//                    mediaPlayer.prepare()
+//                    mediaPlayer.playbackParams.setSpeed(speed)
+//                    mediaPlayer.seekTo(position.toInt())
+//                    if (state == PlaybackStateCompat.STATE_PLAYING) {
+//                        mediaPlayer.start()
+//                    }
+//                }
             }
         }
 
         val playbackState = PlaybackStateCompat.Builder()
+            .setExtras(extras)
             .setActions(
                 PlaybackStateCompat.ACTION_PLAY or
                 PlaybackStateCompat.ACTION_STOP or
@@ -129,7 +120,7 @@ class PodplayMediaCallback(
     override fun onSeekTo(pos: Long) {
         super.onSeekTo(pos)
 
-        mediaPlayer?.seekTo(pos.toInt())
+        exoPlayer?.seekTo(pos)
         val playbackState = mediaSession.controller.playbackState
 
         if (playbackState != null) {
@@ -160,9 +151,12 @@ class PodplayMediaCallback(
     }
 
     private fun initMediaPlayer() {
-        if (mediaPlayer == null) {
-            mediaPlayer = MediaPlayer()
-            mediaPlayer!!.setOnPreparedListener(onPrepareListener)
+        if (exoPlayer == null) {
+            exoPlayer = SimpleExoPlayer.Builder(context).build()
+            exoPlayer!!.addListener(ExoPlayerEventListener())
+            mediaNeedsPrepare = true
+        } else {
+            exoPlayer!!.addListener(ExoPlayerEventListener())
             mediaNeedsPrepare = true
         }
     }
@@ -170,16 +164,10 @@ class PodplayMediaCallback(
     private fun prepareMediaPlayer() {
         if (newMedia) {
             newMedia = false
-            mediaPlayer?.run {
-                try {
-                    reset()
-                    setDataSource(context, mediaUri!!)
-                    setState(PlaybackStateCompat.STATE_BUFFERING)
-                    prepareAsync()
-                } catch (e: Exception) {
-                    setState(PlaybackStateCompat.STATE_ERROR)
-                }
-
+            exoPlayer?.run {
+                setMediaItem(MediaItem.fromUri(mediaUri!!))
+                setState(PlaybackStateCompat.STATE_BUFFERING)
+                prepare()
             }
         }
     }
@@ -198,25 +186,22 @@ class PodplayMediaCallback(
                     mediaExtras.getString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI))
                 .putLong(
                     MediaMetadataCompat.METADATA_KEY_DURATION,
-                    mediaPlayer?.duration?.toLong() ?: 0)
+                    exoPlayer?.duration ?: 0)
                 .build())
         }
     }
 
     private fun startPlaying() {
-        mediaPlayer?.let {
+        exoPlayer?.let {
             if (!it.isPlaying) {
-                updateMetadata()
-                it.start()
-                setState(PlaybackStateCompat.STATE_PLAYING)
-                mediaPlayer?.setOnCompletionListener { setState(PlaybackStateCompat.STATE_PAUSED) }
+                it.play()
             }
         }
     }
 
     private fun pausePlaying() {
         removeAudioFocus()
-        mediaPlayer?.let {
+        exoPlayer?.let {
             if (it.isPlaying) {
                 it.pause()
                 setState(PlaybackStateCompat.STATE_PAUSED)
@@ -227,7 +212,7 @@ class PodplayMediaCallback(
     private fun stopPlaying() {
         removeAudioFocus()
         mediaSession.isActive = false
-        mediaPlayer?.let {
+        exoPlayer?.let {
             if (it.isPlaying) {
                 it.stop()
                 setState(PlaybackStateCompat.STATE_STOPPED)
@@ -272,5 +257,28 @@ class PodplayMediaCallback(
         fun onStateChanged()
         fun onStopPlaying()
         fun onPausePlaying()
+    }
+
+    inner class ExoPlayerEventListener : Player.EventListener {
+        override fun onPlayerError(error: ExoPlaybackException) {
+            super.onPlayerError(error)
+            val extras = Bundle().apply {
+                putString("message", error.message)
+            }
+            setState(PlaybackStateCompat.STATE_ERROR, null, extras)
+        }
+
+        override fun onPlayerStateChanged(playWhenReady: Boolean, playbackState: Int) {
+            if (playbackState == Player.STATE_BUFFERING) {
+                setState(PlaybackStateCompat.STATE_BUFFERING)
+            } else if (playbackState == Player.STATE_ENDED) {
+                setState(PlaybackStateCompat.STATE_PAUSED)
+            } else if (playbackState == Player.STATE_READY && !playWhenReady) {
+                setState(PlaybackStateCompat.STATE_PAUSED)
+            } else if (playbackState == Player.STATE_READY && playWhenReady) {
+                updateMetadata()
+                setState(PlaybackStateCompat.STATE_PLAYING)
+            }
+        }
     }
 }
